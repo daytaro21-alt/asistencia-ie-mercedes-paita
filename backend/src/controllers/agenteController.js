@@ -2,36 +2,52 @@
 const { GoogleGenAI } = require("@google/genai");
 const { consultarTardanzas, declaracionConsultarTardanzas } = require("../utils/iaSkills");
 
-// Inicializa el cliente (Necesitarás poner tu GEMINI_API_KEY en el archivo .env)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const configAgente = {
+    systemInstruction: "Eres el asistente analítico del área de TOECE de la I.E. Nuestra Señora de las Mercedes. Responde de forma ejecutiva, precisa y estructurada usando datos reales de las herramientas disponibles.",
+    tools: [{ functionDeclarations: [declaracionConsultarTardanzas] }],
+};
+
 async function procesarMensajeTOECE(mensajeUsuario) {
+    const contents = [{ role: 'user', parts: [{ text: mensajeUsuario }] }];
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: mensajeUsuario,
-        config: {
-            systemInstruction: "Eres el asistente administrativo de la I.E. Nuestra Señora de las Mercedes. Ayudas al área de TOECE respondiendo dudas sobre asistencia. Usa tus herramientas para buscar datos exactos.",
-            tools: [{ functionDeclarations: [declaracionConsultarTardanzas] }],
-        }
+        contents,
+        config: configAgente
     });
 
-    // Verificamos si el Agente decidió que necesita usar una Skill
     if (response.functionCalls && response.functionCalls.length > 0) {
         const llamada = response.functionCalls[0];
 
         if (llamada.name === "consultar_tardanzas") {
             const { grado, seccion } = llamada.args;
-
-            // El agente determinó los parámetros, ahora ejecutamos la función
             const resultadoBD = await consultarTardanzas(grado, seccion);
 
-            // En un flujo completo, le devolverías este resultado al Agente 
-            // para que arme una respuesta natural, pero por ahora lo retornamos directo.
-            return resultadoBD;
+            // Agregamos la respuesta del modelo (solicitud de tool) y el resultado de nuestra BD
+            contents.push(response.candidates[0].content);
+            contents.push({
+                role: 'user',
+                parts: [{
+                    functionResponse: {
+                        name: llamada.name,
+                        response: { datos: resultadoBD }
+                    }
+                }]
+            });
+
+            // Segunda llamada para que Gemini sintetice el reporte en lenguaje natural
+            const respuestaFinal = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents,
+                config: configAgente
+            });
+
+            return respuestaFinal.text;
         }
     }
 
-    // Si no usó herramientas, devuelve su respuesta normal de texto
     return response.text;
 }
 

@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { procesarMensajeTOECE } = require('../controllers/agenteController');
+const { registrarAsistenciaQR } = require('../controllers/asistencia.controller');
 
 // Endpoint POST: /api/chat
 router.post('/chat', async (req, res) => {
@@ -27,4 +28,6 @@ router.post('/chat', async (req, res) => {
     }
 });
 
+// Endpoint POST: /api/registrar-asistencia (Para el escáner QR)
+router.post('/registrar-asistencia', registrarAsistenciaQR);
 module.exports = router;

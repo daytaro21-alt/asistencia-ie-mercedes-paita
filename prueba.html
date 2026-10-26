@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Escáner QR</title>
+</head>
+
+<body>
+    <h2>Simulador de Escáner QR</h2>
+    <input type="text" id="dniInput" placeholder="Pasa el QR (DNI)" autofocus>
+    <button onclick="enviarQR()">Escanear</button>
+    <p id="resultado"></p>
+
+    <script>
+        async function enviarQR() {
+            const dni = document.getElementById('dniInput').value;
+            const res = await fetch('http://localhost:3000/api/registrar-asistencia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dni })
+            });
+            const data = await res.json();
+            document.getElementById('resultado').innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+
+</html>
