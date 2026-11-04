@@ -15,17 +15,17 @@ async function migrarSIAGIE() {
         let valoresInsertar = [];
         let omitidos = 0;
 
-        // Los datos de los alumnos empiezan a partir de la fila índice 4 (fila 5 visual en Excel)
-        const filasAlumnos = filas.slice(4);
+        // La fila 1 está vacía, la fila 2 (índice 1) son los encabezados y desde la fila 3 (índice 2) están los alumnos
+        const filasAlumnos = filas.slice(2);
 
         for (const fila of filasAlumnos) {
-            const grado = String(fila[2] || '').trim().toUpperCase(); // Columna B
-            const seccion = String(fila[3] || '').trim().toUpperCase(); // Columna C
-            const dni = String(fila[8] || '').trim(); // Columna H
-            const apellidoPaterno = String(fila[13] || '').trim(); // Columna N
-            const apellidoMaterno = String(fila[17] || '').trim(); // Columna R
-            const nombres = String(fila[20] || '').trim(); // Columna U
-            const estadoMatricula = String(fila[26] || '').trim().toUpperCase(); // Columna AA
+            const grado = String(fila[1] || '').trim().toUpperCase(); // Columna B (índice 1)
+            const seccion = String(fila[2] || '').trim().toUpperCase(); // Columna C (índice 2)
+            const dni = String(fila[7] || '').trim(); // Columna H (índice 7)
+            const apellidoPaterno = String(fila[12] || '').trim(); // Columna M (índice 12)
+            const apellidoMaterno = String(fila[16] || '').trim(); // Columna Q (índice 16)
+            const nombres = String(fila[19] || '').trim(); // Columna T (índice 19)
+            const estadoMatricula = String(fila[25] || '').trim().toUpperCase(); // Columna Z (índice 25)
 
             // Validar que exista el DNI de 8 dígitos y que la matrícula sea DEFINITIVA
             if (!dni || !/^\d{8}$/.test(dni) || estadoMatricula !== 'DEFINITIVA') {

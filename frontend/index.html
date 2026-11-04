@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I.E. Nuestra Señora de las Mercedes | Sistema de Control QR - TOECE</title>
+    <link rel="icon" type="image/png" href="/INSIGNIA%20mercedes%20png.png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTML5 QRCode para cámara web opcional -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mercedes: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            200: '#fecaca',
+                            500: '#dc2626',
+                            600: '#c8102e', /* Rojo Carmesí Institucional */
+                            700: '#9e0b22', /* Guinda Mercedario */
+                            800: '#7f091c',
+                            900: '#5c0513',
+                        },
+                        dorado: {
+                            50: '#fefce8',
+                            100: '#fef9c3',
+                            300: '#fde047',
+                            400: '#facc15', /* Amarillo Oro Insignia */
+                            500: '#eab308',
+                            600: '#ca8a04',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .pulse-border { animation: pulseBorder 2s infinite; }
+        @keyframes pulseBorder {
+            0%, 100% { border-color: rgba(200, 16, 46, 0.35); box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.15); }
+            50% { border-color: rgba(200, 16, 46, 1); box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.12); }
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- CINTILLO DORADO Y ROJO INSTITUCIONAL -->
+    <div class="h-1.5 w-full bg-gradient-to-r from-dorado-400 via-mercedes-600 to-dorado-400"></div>
+
+    <!-- BARRA DE NAVEGACIÓN INSTITUCIONAL -->
+    <header class="bg-gradient-to-r from-mercedes-800 via-mercedes-700 to-mercedes-800 text-white border-b-4 border-dorado-400 shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+            <!-- Insignia + Nombre Oficial -->
+            <div class="flex items-center gap-3.5">
+                <div class="w-12 h-14 bg-white/95 rounded-xl p-1 shadow-md border-2 border-dorado-400 flex items-center justify-center shrink-0">
+                    <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia I.E. Nuestra Señora de las Mercedes" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded bg-dorado-400 text-mercedes-900 shadow-sm">
+                            Área de TOECE
+                        </span>
+                        <span class="hidden sm:inline-block text-[11px] text-dorado-100 font-medium">
+                            Piloto 5to de Secundaria • Turno Tarde
+                        </span>
+                    </div>
+                    <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-white drop-shadow-sm mt-0.5">
+                        I.E. Nuestra Señora de las Mercedes
+                    </h1>
+                    <p class="text-xs text-red-100/90">Sistema Automatizado de Gestión de Asistencia Estudiantil mediante Código QR</p>
+                </div>
+            </div>
+
+            <!-- Reloj Tiempo Real (America/Lima) + Selector de Vista -->
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex items-center gap-2 bg-mercedes-900/70 border border-dorado-400/40 px-3.5 py-2 rounded-xl shadow-inner">
+                    <i data-lucide="clock" class="w-4 h-4 text-dorado-400"></i>
+                    <span id="relojPeru" class="font-mono text-sm font-bold text-white">--:--:--</span>
+                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-dorado-400 text-mercedes-900">PERÚ</span>
+                </div>
+
+                <!-- Selector de Modo: Kiosco Portón vs Panel TOECE -->
+                <div class="flex bg-mercedes-900/80 p-1 rounded-xl border border-dorado-400/40">
+                    <button id="btnModoKiosco" onclick="cambiarModo('kiosco')"
+                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow">
+                        <i data-lucide="scan-line" class="w-4 h-4"></i>
+                        Portón QR
+                    </button>
+                    <button id="btnModoToece" onclick="cambiarModo('toece')"
+                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        Panel TOECE
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================================= -->
+    <!-- VISTA 1: KIOSCO DE ESCANEO QR EN PORTÓN                   -->
+    <!-- ========================================================= -->
+    <main id="vistaKiosco" class="flex-1 max-w-6xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Columna Izquierda: Lector QR (Pistola Láser USB o Cámara) -->
+        <div class="lg:col-span-5 bg-white border-t-4 border-t-mercedes-600 border-x border-b border-slate-200 rounded-2xl p-6 shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Escáner Activo en Portón
+                </span>
+                <span class="text-xs font-semibold text-mercedes-700 bg-mercedes-50 px-2.5 py-1 rounded-lg border border-mercedes-100">
+                    5to Sec. (257 alumnos)
+                </span>
+            </div>
+
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1">Control de Ingreso Estudiantil</h2>
+            <div class="bg-amber-50/70 border border-dorado-300 rounded-xl p-3 mb-5 text-xs space-y-1">
+                <p class="font-bold text-mercedes-800 uppercase tracking-wide text-[11px]">Horario Oficial — Turno Tarde:</p>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-slate-700">
+                    <span>🟢 <strong>12:30 - 12:45:</strong> Puntual</span>
+                    <span>🟡 <strong>12:45 - 13:30:</strong> Tardanza</span>
+                    <span>🔴 <strong>13:30:</strong> Cierre / Falta</span>
+                </div>
+            </div>
+
+            <!-- Formulario Pistola Lectora QR / Teclado -->
+            <form id="formEscaner" onsubmit="procesarEscaneoManual(event)" class="space-y-3">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Lectura de Código QR (DNI de 8 dígitos)
+                </label>
+                <div class="relative">
+                    <input type="text" id="inputDniQr" maxlength="8" autocomplete="off" autofocus
+                        placeholder="Acerca el carnet QR al lector..."
+                        class="w-full bg-slate-50 border-2 border-mercedes-600 rounded-xl px-4 py-3.5 text-lg font-mono font-bold tracking-widest text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white pulse-border">
+                    <button type="submit"
+                        class="absolute right-2 top-2 bottom-2 bg-mercedes-600 hover:bg-mercedes-700 text-white font-bold px-4 rounded-lg text-sm transition shadow flex items-center gap-1.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        Registrar
+                    </button>
+                </div>
+            </form>
+
+            <!-- Botón para activar Cámara Web si no hay pistola USB conectada -->
+            <div class="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">¿Usar cámara web como lector?</span>
+                <button id="btnToggleCamara" type="button" onclick="alternarCamaraQR()"
+                    class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-3.5 h-3.5 text-mercedes-600"></i>
+                    <span>Activar Cámara</span>
+                </button>
+            </div>
+
+            <!-- Contenedor de Cámara QR -->
+            <div id="contenedorCamara" class="hidden mt-4 rounded-xl overflow-hidden border-2 border-mercedes-600 bg-black">
+                <div id="readerQr" class="w-full"></div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Tarjeta de Respuesta Inmediata + Últimos Ingresos -->
+        <div class="lg:col-span-7 space-y-6">
+            <!-- Tarjeta Semáforo de Última Lectura -->
+            <div id="tarjetaResultadoEscaneo" class="bg-white border-2 border-slate-200 rounded-2xl p-8 text-center shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="w-20 h-24 mx-auto mb-3 p-1.5 rounded-2xl bg-amber-50 border-2 border-dorado-400 shadow-sm flex items-center justify-center">
+                    <img src="/INSIGNIA%20mercedes%20png.png" alt="Escudo Mercedario" class="w-full h-full object-contain">
+                </div>
+                <p id="badgeEstadoEscaneo" class="inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-300 mb-2">
+                    ESPERANDO LECTURA EN PORTÓN
+                </p>
+                <h3 id="nombreAlumnoEscaneo" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Listo para escanear
+                </h3>
+                <p id="detalleAlumnoEscaneo" class="text-sm text-slate-500 font-medium mt-1">
+                    Pasa el carnet QR del estudiante por el lector para registrar su asistencia
+                </p>
+            </div>
+
+            <!-- Historial Reciente en Portón (Sesión actual) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-mercedes-700 flex items-center gap-1.5">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                        Últimas lecturas en portón
+                    </h4>
+                    <span id="contadorLecturasLocal" class="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">0 registros recientes</span>
+                </div>
+                <div id="listaUltimasLecturas" class="divide-y divide-slate-100 max-h-60 overflow-y-auto text-sm">
+                    <p class="text-xs text-slate-400 py-6 text-center">Aún no se han escaneado carnets en esta sesión.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- VISTA 2: LOGIN DE PERSONAL TOECE                          -->
+    <!-- ========================================================= -->
+    <section id="vistaLogin" class="hidden flex-1 flex items-center justify-center px-4 py-12">
+        <div class="max-w-md w-full bg-white border-t-4 border-t-mercedes-600 border-x border-b border-slate-200 rounded-2xl p-8 shadow-xl text-center">
+            <div class="w-20 h-24 mx-auto mb-4 p-1.5 rounded-2xl bg-amber-50 border-2 border-dorado-400 shadow">
+                <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia Mercedes" class="w-full h-full object-contain">
+            </div>
+            <span class="inline-block text-[11px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full bg-mercedes-50 text-mercedes-700 border border-mercedes-200 mb-1">
+                Oficina de TOECE
+            </span>
+            <h2 class="text-xl font-extrabold text-slate-900">Acceso Institucional</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-6">I.E. Nuestra Señora de las Mercedes • Panel de Control y Analítica IA</p>
+
+            <form onsubmit="iniciarSesionTOECE(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Usuario TOECE</label>
+                    <input type="text" id="loginUsername" required placeholder="admin_toece" value="admin_toece"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:border-mercedes-600 focus:bg-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••••••"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:border-mercedes-600 focus:bg-white focus:outline-none">
+                </div>
+                <p id="errorLogin" class="hidden text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5"></p>
+                <button type="submit" id="btnSubmitLogin"
+                    class="w-full bg-gradient-to-r from-mercedes-700 to-mercedes-600 hover:from-mercedes-800 hover:to-mercedes-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-md">
+                    Ingresar al Panel de TOECE
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- VISTA 3: DASHBOARD ADMINISTRATIVO TOECE + AGENTE IA       -->
+    <!-- ========================================================= -->
+    <section id="vistaDashboard" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        
+        <!-- Barra Superior de Usuario y Acciones Críticas -->
+        <div class="bg-white border border-slate-200 border-l-4 border-l-mercedes-600 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia" class="w-9 h-11 object-contain">
+                <div>
+                    <p class="text-sm font-extrabold text-slate-900" id="lblUsuarioActivo">Personal TOECE</p>
+                    <p class="text-xs text-slate-500">Monitoreo en Tiempo Real • 5to de Secundaria (Secciones A - H)</p>
+                </div>
+            </div>
+
+            <!-- Pestañas Internas del Panel TOECE -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="cambiarSubTab('monitoreo')" id="subTabMonitoreo"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold bg-mercedes-600 text-white shadow-sm transition">
+                    📊 Asistencia del Día
+                </button>
+                <button onclick="cambiarSubTab('apoderados')" id="subTabApoderados"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+                    📱 Teléfonos Apoderados (WhatsApp)
+                </button>
+                <button onclick="ejecutarCierrePortonUI()"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-mercedes-600 text-mercedes-800 hover:text-white border border-dorado-400 transition flex items-center gap-1.5">
+                    <i data-lucide="door-closed" class="w-3.5 h-3.5"></i>
+                    Cerrar Portón (Marcar Faltas 13:30)
+                </button>
+                <button onclick="cerrarSesion()"
+                    class="px-2.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition" title="Cerrar sesión">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- KPIs de Asistencia en Tiempo Real -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div class="bg-white border border-slate-200 border-b-4 border-b-mercedes-700 rounded-xl p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase text-slate-500">Padrón 5to Sec.</p>
+                <p id="kpiTotal" class="text-2xl font-extrabold text-slate-900 mt-1">257</p>
+            </div>
+            <div class="bg-white border border-slate-200 border-b-4 border-b-emerald-500 rounded-xl p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase text-emerald-700">Puntuales (≤12:45)</p>
+                <p id="kpiPuntuales" class="text-2xl font-extrabold text-emerald-600 mt-1">0</p>
+            </div>
+            <div class="bg-white border border-slate-200 border-b-4 border-b-amber-500 rounded-xl p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase text-amber-700">Tardanzas (>12:45)</p>
+                <p id="kpiTardanzas" class="text-2xl font-extrabold text-amber-600 mt-1">0</p>
+            </div>
+            <div class="bg-white border border-slate-200 border-b-4 border-b-rose-600 rounded-xl p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase text-rose-700">Faltas (Cierre 13:30)</p>
+                <p id="kpiFaltas" class="text-2xl font-extrabold text-rose-600 mt-1">0</p>
+            </div>
+            <div class="col-span-2 sm:col-span-1 bg-white border border-slate-200 border-b-4 border-b-slate-400 rounded-xl p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase text-slate-500">Sin Registro Aún</p>
+                <p id="kpiPendientes" class="text-2xl font-extrabold text-slate-700 mt-1">0</p>
+            </div>
+        </div>
+
+        <!-- CONTENIDO PRINCIPAL: TABLA / DIRECTORIO (IZQUIERDA) + AGENTE IA GEMINI (DERECHA) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- COLUMNA IZQUIERDA (7 cols): Monitoreo o Directorio de Apoderados -->
+            <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                
+                <!-- SUB-VISTA A: MONITOREO DE ASISTENCIA DEL DÍA -->
+                <div id="panelMonitoreoDia">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <h3 class="text-sm font-extrabold text-mercedes-800 flex items-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-mercedes-600"></i>
+                            Registros de Asistencia del Día
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="filtroFecha" onchange="cargarResumenDashboard()"
+                                class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800">
+                            <select id="filtroSeccion" onchange="cargarResumenDashboard()"
+                                class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800">
+                                <option value="">Todas las Secciones (A-H)</option>
+                                <option value="A">5to Sección A</option>
+                                <option value="B">5to Sección B</option>
+                                <option value="C">5to Sección C</option>
+                                <option value="D">5to Sección D</option>
+                                <option value="E">5to Sección E</option>
+                                <option value="F">5to Sección F</option>
+                                <option value="G">5to Sección G</option>
+                                <option value="H">5to Sección H</option>
+                            </select>
+                            <button onclick="cargarResumenDashboard()" class="p-1.5 rounded-lg bg-mercedes-50 hover:bg-mercedes-100 text-mercedes-700 border border-mercedes-200" title="Actualizar">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[460px] overflow-y-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-mercedes-700 text-white sticky top-0">
+                                <tr>
+                                    <th class="py-2.5 px-3 font-bold">Hora</th>
+                                    <th class="py-2.5 px-3 font-bold">DNI</th>
+                                    <th class="py-2.5 px-3 font-bold">Estudiante</th>
+                                    <th class="py-2.5 px-3 font-bold">Sec.</th>
+                                    <th class="py-2.5 px-3 font-bold">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaRegistrosDia" class="divide-y divide-slate-200">
+                                <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando registros...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUB-VISTA B: DIRECTORIO Y TELÉFONOS DE APODERADOS PARA WHATSAPP -->
+                <div id="panelDirectorioApoderados" class="hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-mercedes-800">Celulares de Apoderados (Alertas WhatsApp)</h3>
+                            <p class="text-[11px] text-slate-500">Asigna el número de 9 dígitos del padre/apoderado para el envío automático de tardanzas y faltas.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <input type="text" id="busquedaEstudiante" oninput="cargarDirectorioEstudiantes()"
+                                placeholder="Buscar por DNI o apellidos..."
+                                class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800">
+                            <select id="filtroSeccionDir" onchange="cargarDirectorioEstudiantes()"
+                                class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800">
+                                <option value="">Sección (Todas)</option>
+                                <option value="A">5to A</option>
+                                <option value="B">5to B</option>
+                                <option value="C">5to C</option>
+                                <option value="D">5to D</option>
+                                <option value="E">5to E</option>
+                                <option value="F">5to F</option>
+                                <option value="G">5to G</option>
+                                <option value="H">5to H</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[460px] overflow-y-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-mercedes-700 text-white sticky top-0">
+                                <tr>
+                                    <th class="py-2.5 px-3 font-bold">DNI</th>
+                                    <th class="py-2.5 px-3 font-bold">Estudiante</th>
+                                    <th class="py-2.5 px-3 font-bold">Sec.</th>
+                                    <th class="py-2.5 px-3 font-bold">Celular Apoderado</th>
+                                    <th class="py-2.5 px-3 font-bold text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaDirectorioEstudiantes" class="divide-y divide-slate-200">
+                                <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando padrón...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- COLUMNA DERECHA (5 cols): ASISTENTE ANALÍTICO IA (GEMINI 2.5 FLASH) -->
+            <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[560px] overflow-hidden">
+                <div class="p-4 bg-gradient-to-r from-mercedes-800 to-mercedes-700 text-white border-b-2 border-dorado-400 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-dorado-400 text-mercedes-900 flex items-center justify-center font-bold shadow">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-white">Asistente Analítico TOECE (IA)</h3>
+                            <p class="text-[11px] text-dorado-100">Gemini 2.5 Flash • Consultas SQL en Lenguaje Natural</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sugerencias Rápidas de Prompt -->
+                <div class="px-4 py-2 bg-amber-50/80 border-b border-slate-200 flex gap-1.5 overflow-x-auto text-[11px]">
+                    <button onclick="enviarPreguntaRapida('¿Quiénes llegaron tarde hoy en 5to A?')"
+                        class="shrink-0 bg-white hover:bg-mercedes-50 text-mercedes-800 border border-mercedes-200 font-semibold px-2.5 py-1 rounded-full transition shadow-sm">
+                        ⏰ Tardanzas hoy 5to A
+                    </button>
+                    <button onclick="enviarPreguntaRapida('Dame el resumen estadístico de asistencia de hoy por secciones')"
+                        class="shrink-0 bg-white hover:bg-mercedes-50 text-mercedes-800 border border-mercedes-200 font-semibold px-2.5 py-1 rounded-full transition shadow-sm">
+                        📊 Estadísticas por sección
+                    </button>
+                    <button onclick="enviarPreguntaRapida('¿Qué alumnos registraron falta hoy?')"
+                        class="shrink-0 bg-white hover:bg-mercedes-50 text-mercedes-800 border border-mercedes-200 font-semibold px-2.5 py-1 rounded-full transition shadow-sm">
+                        🚨 Faltas de hoy
+                    </button>
+                </div>
+
+                <!-- Historial de Mensajes del Chat -->
+                <div id="chatMensajes" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs leading-relaxed bg-slate-50/50">
+                    <div class="bg-white border border-slate-200 rounded-xl p-3.5 text-slate-700 shadow-sm">
+                        👋 Hola. Soy el agente de inteligencia artificial del área de <strong>TOECE - I.E. Nuestra Señora de las Mercedes</strong>. Puedo consultar en tiempo real la base de datos de 5to de Secundaria para entregarte reportes de tardanzas, faltas y estadísticas por sección. ¿Qué deseas consultar?
+                    </div>
+                </div>
+
+                <!-- Input del Chat IA -->
+                <form onsubmit="enviarMensajeChatIA(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+                    <input type="text" id="inputChatIA" placeholder="Ej: ¿Cuántos alumnos llegaron tarde hoy en 5to B?"
+                        class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:border-mercedes-600 focus:bg-white focus:outline-none">
+                    <button type="submit" id="btnEnviarChat"
+                        class="bg-mercedes-600 hover:bg-mercedes-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow flex items-center gap-1">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        Consultar
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FOOTER INSTITUCIONAL -->
+    <footer class="bg-white border-t border-slate-200 py-3 px-4 text-center text-xs text-slate-500">
+        <strong>I.E. Nuestra Señora de las Mercedes</strong> • Oficina de TOECE • Desarrollado por Dayron Iván Talledo Rojas (Piloto 5to de Secundaria)
+    </footer>
+
+    <script>
+        const API_BASE = '/api';
+        let tokenJWT = localStorage.getItem('toece_jwt') || null;
+        let usuarioActual = JSON.parse(localStorage.getItem('toece_user') || 'null');
+        let html5QrScanner = null;
+        let camaraActiva = false;
+        const historialLocalPorton = [];
+
+        // Inicializar íconos y reloj de Perú
+        lucide.createIcons();
+        setInterval(() => {
+            const ahora = new Date();
+            document.getElementById('relojPeru').innerText = new Intl.DateTimeFormat('es-PE', {
+                timeZone: 'America/Lima',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            }).format(ahora);
+        }, 1000);
+
+        // Fijar fecha de hoy (America/Lima) en el selector del dashboard
+        document.getElementById('filtroFecha').value = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(new Date());
+
+        // Beep sintético con Web Audio API para feedback auditivo en el portón
+        function reproducirSonido(tipo) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (tipo === 'ok') {
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.15;
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.15);
+                } else {
+                    osc.frequency.value = 240;
+                    gain.gain.value = 0.2;
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.35);
+                }
+            } catch (_) {}
+        }
+
+        // Alternar entre Vista Kiosco Portón y Panel TOECE
+        function cambiarModo(modo) {
+            const vKiosco = document.getElementById('vistaKiosco');
+            const vLogin = document.getElementById('vistaLogin');
+            const vDash = document.getElementById('vistaDashboard');
+            const btnK = document.getElementById('btnModoKiosco');
+            const btnT = document.getElementById('btnModoToece');
+
+            if (modo === 'kiosco') {
+                vKiosco.classList.remove('hidden');
+                vLogin.classList.add('hidden');
+                vDash.classList.add('hidden');
+                btnK.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
+                btnT.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
+                setTimeout(() => document.getElementById('inputDniQr').focus(), 100);
+            } else {
+                vKiosco.classList.add('hidden');
+                btnT.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
+                btnK.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
+
+                if (tokenJWT) {
+                    vLogin.classList.add('hidden');
+                    vDash.classList.remove('hidden');
+                    document.getElementById('lblUsuarioActivo').innerText = `TOECE: ${usuarioActual?.username || 'Administrador'}`;
+                    cargarResumenDashboard();
+                } else {
+                    vDash.classList.add('hidden');
+                    vLogin.classList.remove('hidden');
+                }
+            }
+        }
+
+        // =====================================================
+        // LÓGICA 1: REGISTRO DE ASISTENCIA QR EN PORTÓN
+        // =====================================================
+        async function procesarEscaneoManual(e) {
+            e.preventDefault();
+            const input = document.getElementById('inputDniQr');
+            const dni = input.value.trim();
+            if (!dni) return;
+            input.value = '';
+            await registrarDniEnBackend(dni);
+            input.focus();
+        }
+
+        async function registrarDniEnBackend(dni) {
+            const tarjeta = document.getElementById('tarjetaResultadoEscaneo');
+            const badge = document.getElementById('badgeEstadoEscaneo');
+            const nombre = document.getElementById('nombreAlumnoEscaneo');
+            const detalle = document.getElementById('detalleAlumnoEscaneo');
+
+            try {
+                const res = await fetch(`${API_BASE}/registrar-asistencia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    reproducirSonido('ok');
+                    const esPuntual = data.estado === 'Puntual';
+                    tarjeta.className = esPuntual
+                        ? 'bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-8 text-center shadow-md transition-all'
+                        : 'bg-amber-50 border-2 border-amber-500 rounded-2xl p-8 text-center shadow-md transition-all';
+
+                    badge.className = esPuntual
+                        ? 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-emerald-600 text-white mb-2 shadow-sm'
+                        : 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 mb-2 shadow-sm';
+
+                    badge.innerText = `${data.estado.toUpperCase()} • ${data.hora}`;
+                    nombre.innerText = data.alumno;
+                    detalle.innerText = `DNI: ${data.dni} • 5to Secundaria - Sección "${data.seccion}"`;
+
+                    historialLocalPorton.unshift(data);
+                    renderizarHistorialPorton();
+                } else {
+                    reproducirSonido('error');
+                    tarjeta.className = 'bg-rose-50 border-2 border-rose-500 rounded-2xl p-8 text-center shadow-md transition-all';
+                    badge.className = 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-rose-600 text-white mb-2 shadow-sm';
+                    badge.innerText = res.status === 409 ? 'DOBLE ESCANEO BLOQUEADO' : 'LECTURA RECHAZADA';
+                    nombre.innerText = data.alumno || `DNI: ${dni}`;
+                    detalle.innerText = data.error || 'Error al procesar el código QR.';
+                }
+            } catch (err) {
+                reproducirSonido('error');
+                detalle.innerText = 'Error de conexión con el servidor.';
+            }
+        }
+
+        function renderizarHistorialPorton() {
+            const cont = document.getElementById('listaUltimasLecturas');
+            document.getElementById('contadorLecturasLocal').innerText = `${historialLocalPorton.length} registros en sesión`;
+            cont.innerHTML = historialLocalPorton.slice(0, 15).map(item => `
+                <div class="py-2.5 px-2 flex items-center justify-between hover:bg-slate-50 rounded-lg">
+                    <div>
+                        <p class="font-bold text-slate-800 text-xs">${item.alumno}</p>
+                        <p class="text-[11px] text-slate-500">DNI: ${item.dni} • 5to "${item.seccion}"</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${item.estado === 'Puntual' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">
+                            ${item.estado}
+                        </span>
+                        <p class="text-[11px] font-mono font-semibold text-slate-500 mt-0.5">${item.hora}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Cámara Web QR opcional
+        async function alternarCamaraQR() {
+            const cont = document.getElementById('contenedorCamara');
+            const btn = document.getElementById('btnToggleCamara');
+
+            if (!camaraActiva) {
+                cont.classList.remove('hidden');
+                html5QrScanner = new Html5Qrcode("readerQr");
+                try {
+                    let ultimoDniLeido = '';
+                    await html5QrScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 220, height: 220 } },
+                        (decodedText) => {
+                            const limpio = decodedText.trim();
+                            if (/^\d{8}$/.test(limpio) && limpio !== ultimoDniLeido) {
+                                ultimoDniLeido = limpio;
+                                registrarDniEnBackend(limpio);
+                                setTimeout(() => { ultimoDniLeido = ''; }, 3500);
+                            }
+                        }
+                    );
+                    camaraActiva = true;
+                    btn.innerHTML = '<i data-lucide="camera-off" class="w-3.5 h-3.5 text-rose-600"></i><span>Detener Cámara</span>';
+                    lucide.createIcons();
+                } catch (e) {
+                    alert('No se pudo acceder a la cámara web.');
+                    cont.classList.add('hidden');
+                }
+            } else {
+                if (html5QrScanner) await html5QrScanner.stop();
+                cont.classList.add('hidden');
+                camaraActiva = false;
+                btn.innerHTML = '<i data-lucide="camera" class="w-3.5 h-3.5 text-mercedes-600"></i><span>Activar Cámara</span>';
+                lucide.createIcons();
+            }
+        }
+
+        // =====================================================
+        // LÓGICA 2: AUTENTICACIÓN JWT Y PANEL TOECE
+        // =====================================================
+        async function iniciarSesionTOECE(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errBox = document.getElementById('errorLogin');
+            errBox.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errBox.innerText = data.error || 'Error de autenticación';
+                    errBox.classList.remove('hidden');
+                    return;
+                }
+
+                tokenJWT = data.token;
+                usuarioActual = data.usuario;
+                localStorage.setItem('toece_jwt', tokenJWT);
+                localStorage.setItem('toece_user', JSON.stringify(usuarioActual));
+                cambiarModo('toece');
+            } catch (err) {
+                errBox.innerText = 'No se pudo conectar con el servidor.';
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function cerrarSesion() {
+            tokenJWT = null;
+            usuarioActual = null;
+            localStorage.removeItem('toece_jwt');
+            localStorage.removeItem('toece_user');
+            cambiarModo('toece');
+        }
+
+        function cambiarSubTab(tab) {
+            const pMon = document.getElementById('panelMonitoreoDia');
+            const pDir = document.getElementById('panelDirectorioApoderados');
+            const bMon = document.getElementById('subTabMonitoreo');
+            const bDir = document.getElementById('subTabApoderados');
+
+            if (tab === 'monitoreo') {
+                pMon.classList.remove('hidden');
+                pDir.classList.add('hidden');
+                bMon.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-mercedes-600 text-white shadow-sm transition';
+                bDir.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+                cargarResumenDashboard();
+            } else {
+                pMon.classList.add('hidden');
+                pDir.classList.remove('hidden');
+                bDir.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-mercedes-600 text-white shadow-sm transition';
+                bMon.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+                cargarDirectorioEstudiantes();
+            }
+        }
+
+        async function cargarResumenDashboard() {
+            if (!tokenJWT) return;
+            const fecha = document.getElementById('filtroFecha').value;
+            const seccion = document.getElementById('filtroSeccion').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/asistencia/resumen?fecha=${fecha}&seccion=${seccion}`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                if (res.status === 401 || res.status === 403) return cerrarSesion();
+                const data = await res.json();
+
+                document.getElementById('kpiTotal').innerText = data.metricas.totalPadron;
+                document.getElementById('kpiPuntuales').innerText = data.metricas.puntuales;
+                document.getElementById('kpiTardanzas').innerText = data.metricas.tardanzas;
+                document.getElementById('kpiFaltas').innerText = data.metricas.faltas;
+                document.getElementById('kpiPendientes').innerText = data.metricas.pendientes;
+
+                const tbody = document.getElementById('tablaRegistrosDia');
+                if (!data.registros || data.registros.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400">No hay registros para los filtros seleccionados.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.registros.map(r => {
+                    const badgeColor = r.estado === 'Puntual'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : r.estado === 'Tardanza'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-rose-100 text-rose-800 border-rose-300';
+
+                    return `
+                        <tr class="hover:bg-amber-50/40">
+                            <td class="py-2.5 px-3 font-mono font-semibold text-slate-700">${r.hora_ingreso}</td>
+                            <td class="py-2.5 px-3 font-mono text-slate-500">${r.dni}</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-900">${r.apellidos}, ${r.nombres}</td>
+                            <td class="py-2.5 px-3 font-bold text-mercedes-700">5to "${r.seccion}"</td>
+                            <td class="py-2.5 px-3">
+                                <span class="px-2 py-0.5 rounded border text-[10px] font-extrabold uppercase ${badgeColor}">
+                                    ${r.estado}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function ejecutarCierrePortonUI() {
+            const fecha = document.getElementById('filtroFecha').value;
+            if (!confirm(`¿Confirmas el Cierre de Portón para la fecha ${fecha}? Todos los alumnos de 5to sin registro hoy serán marcados con FALTA y se enviarán las alertas de WhatsApp a sus apoderados.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/asistencia/cerrar-porton`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({ fecha })
+                });
+                const data = await res.json();
+                alert(`${data.mensaje}\nAlertas de WhatsApp encoladas: ${data.alertasEncoladas}`);
+                cargarResumenDashboard();
+            } catch (e) {
+                alert('Error al ejecutar el cierre de portón.');
+            }
+        }
+
+        // Directorio de Estudiantes y Actualización de Celular de Apoderado
+        async function cargarDirectorioEstudiantes() {
+            if (!tokenJWT) return;
+            const busqueda = document.getElementById('busquedaEstudiante').value.trim();
+            const seccion = document.getElementById('filtroSeccionDir').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/estudiantes?seccion=${seccion}&busqueda=${encodeURIComponent(busqueda)}`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('tablaDirectorioEstudiantes');
+
+                if (!data.estudiantes || data.estudiantes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400">No se encontraron estudiantes.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.estudiantes.map(est => `
+                    <tr class="hover:bg-amber-50/40">
+                        <td class="py-2 px-3 font-mono text-slate-500">${est.dni}</td>
+                        <td class="py-2 px-3 font-bold text-slate-900">${est.apellidos}, ${est.nombres}</td>
+                        <td class="py-2 px-3 font-bold text-mercedes-700">5to "${est.seccion}"</td>
+                        <td class="py-2 px-3">
+                            <input type="text" id="tel_${est.dni}" value="${est.telefono_apoderado || ''}"
+                                placeholder="9XXXXXXXX" maxlength="11"
+                                class="w-28 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-900 focus:border-mercedes-600 focus:bg-white focus:outline-none">
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            <button onclick="guardarTelefono('${est.dni}')"
+                                class="bg-mercedes-600 hover:bg-mercedes-700 text-white px-3 py-1 rounded-lg text-[11px] font-bold transition shadow-sm">
+                                Guardar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function guardarTelefono(dni) {
+            const input = document.getElementById(`tel_${dni}`);
+            const telefono_apoderado = input.value.trim();
+
+            try {
+                const res = await fetch(`${API_BASE}/estudiantes/${dni}/telefono`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({ telefono_apoderado })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Error al guardar el teléfono');
+                    return;
+                }
+                input.classList.add('border-emerald-500', 'bg-emerald-50');
+                setTimeout(() => input.classList.remove('border-emerald-500', 'bg-emerald-50'), 1500);
+            } catch (e) {
+                alert('Error de red al actualizar teléfono.');
+            }
+        }
+
+        // =====================================================
+        // LÓGICA 3: CHAT CON AGENTE IA (GEMINI 2.5 FLASH)
+        // =====================================================
+        function enviarPreguntaRapida(texto) {
+            document.getElementById('inputChatIA').value = texto;
+            enviarMensajeChatIA(new Event('submit'));
+        }
+
+        async function enviarMensajeChatIA(e) {
+            e.preventDefault();
+            const input = document.getElementById('inputChatIA');
+            const mensaje = input.value.trim();
+            if (!mensaje || !tokenJWT) return;
+
+            const contenedor = document.getElementById('chatMensajes');
+            input.value = '';
+
+            // Burbuja del usuario
+            contenedor.innerHTML += `
+                <div class="bg-mercedes-600 text-white rounded-xl p-3 ml-8 shadow-sm">
+                    <p class="font-bold text-[10px] text-dorado-300 uppercase mb-0.5">Tú (${usuarioActual?.username || 'TOECE'})</p>
+                    ${mensaje}
+                </div>
+            `;
+
+            const idCarga = 'carga_' + Date.now();
+            contenedor.innerHTML += `
+                <div id="${idCarga}" class="bg-white border border-slate-200 rounded-xl p-3 text-slate-500 mr-8 animate-pulse shadow-sm">
+                    🤖 Consultando base de datos MySQL con Gemini IA...
+                </div>
+            `;
+            contenedor.scrollTop = contenedor.scrollHeight;
+
+            try {
+                const fechaSeleccionada = document.getElementById('filtroFecha')?.value || undefined;
+                const res = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({ mensaje, fecha: fechaSeleccionada })
+                });
+                const data = await res.json();
+                document.getElementById(idCarga)?.remove();
+
+                const textoRespuesta = (data.respuesta || data.error || 'Sin respuesta.')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n/g, '<br>');
+
+                contenedor.innerHTML += `
+                    <div class="bg-white border-l-4 border-l-dorado-400 border border-slate-200 rounded-xl p-3.5 text-slate-800 mr-4 shadow-sm">
+                        <p class="font-extrabold text-[10px] text-mercedes-700 uppercase mb-1">Agente IA TOECE</p>
+                        <div>${textoRespuesta}</div>
+                    </div>
+                `;
+                contenedor.scrollTop = contenedor.scrollHeight;
+            } catch (err) {
+                document.getElementById(idCarga)?.remove();
+                contenedor.innerHTML += `
+                    <div class="bg-rose-50 border border-rose-300 rounded-xl p-3 text-rose-800 mr-8">
+                        Error al comunicarse con el Agente IA.
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
