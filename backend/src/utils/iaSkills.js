@@ -65,6 +65,7 @@ async function consultarTardanzas(grado, seccion, fecha, estado) {
             FROM Asistencia a
             INNER JOIN Estudiante e ON a.estudiante_id = e.id_estudiante
             WHERE a.fecha = ?
+              AND COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
         `;
         const params = [fechaConsulta];
 
@@ -120,6 +121,7 @@ async function obtenerEstadisticasAsistencia(fecha) {
                 SUM(CASE WHEN a.id_asistencia IS NULL THEN 1 ELSE 0 END) AS sin_registro
              FROM Estudiante e
              LEFT JOIN Asistencia a ON e.id_estudiante = a.estudiante_id AND a.fecha = ?
+             WHERE COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
              GROUP BY e.seccion
              ORDER BY e.seccion ASC`,
             [fechaConsulta]

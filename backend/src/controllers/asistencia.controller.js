@@ -1,6 +1,12 @@
 // src/controllers/asistencia.controller.js
 const pool = require('../config/db');
 const { enviarAlertaWhatsApp } = require('../utils/whatsappService');
+const {
+    extraerEstudiantesDeBufferExcel,
+    normalizarSeccion,
+    normalizarGrado,
+    normalizarEstadoMatricula
+} = require('../utils/excelParser');
 
 // Formateador determinista fijado a la zona horaria de Perú
 const obtenerFechaHoraPeru = () => {
@@ -8,7 +14,6 @@ const obtenerFechaHoraPeru = () => {
     const opcionesFecha = { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' };
     const opcionesHora = { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
 
-    // Formato YYYY-MM-DD (usando locale sv-SE que estandariza ISO en zona local)
     const fechaSQL = new Intl.DateTimeFormat('sv-SE', opcionesFecha).format(ahora);
     const horaSQL = new Intl.DateTimeFormat('sv-SE', opcionesHora).format(ahora);
 
@@ -17,10 +22,7 @@ const obtenerFechaHoraPeru = () => {
 
 /**
  * POST /api/registrar-asistencia
- * Escaneo QR en portón:
- * - 12:30:00 a 12:45:00 -> Puntual
- * - 12:45:01 a 13:30:00 -> Tardanza (+ Alerta WhatsApp)
- * - > 13:30:00 -> Portón cerrado (rechaza o registra según política; aquí rechaza por portón cerrado si no tiene falta previa)
+ * Escaneo QR en portón
  */
 const registrarAsistenciaQR = async (req, res) => {
     const { dni } = req.body;
@@ -31,7 +33,9 @@ const registrarAsistenciaQR = async (req, res) => {
 
     try {
         const [estudiantes] = await pool.query(
-            'SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado FROM Estudiante WHERE dni = ?',
+            `SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado,
+                    COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+             FROM Estudiante WHERE dni = ?`,
             [dni.trim()]
         );
 
@@ -40,12 +44,21 @@ const registrarAsistenciaQR = async (req, res) => {
         }
 
         const estudiante = estudiantes[0];
+
+        if (estudiante.estado_matricula !== 'DEFINITIVA') {
+            return res.status(403).json({
+                error: `Estudiante dado de baja (${estudiante.estado_matricula}). No figura en el padrón activo.`,
+                alumno: `${estudiante.nombres} ${estudiante.apellidos}`,
+                grado: estudiante.grado,
+                seccion: estudiante.seccion
+            });
+        }
+
         const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
 
         const horaLimitePuntual = process.env.HORA_LIMITE_PUNTUAL || '12:45:00';
         const horaCierrePorton = process.env.HORA_CIERRE_PORTON || '13:30:00';
 
-        // Si el escaneo ocurre después de las 13:30:00 y se activa bloqueo estricto de portón (opcional por variable)
         if (process.env.BLOQUEAR_DESPUES_CIERRE === 'true' && horaSQL > horaCierrePorton) {
             return res.status(403).json({
                 error: `El portón cerró a las ${horaCierrePorton}. El estudiante debe pasar por oficina de TOECE.`,
@@ -75,7 +88,6 @@ const registrarAsistenciaQR = async (req, res) => {
             throw dbError;
         }
 
-        // Disparo asíncrono (Fire-and-Forget) para no bloquear la fila en el portón
         if (estadoAsistencia === 'Tardanza' && estudiante.telefono_apoderado) {
             setImmediate(() => {
                 enviarAlertaWhatsApp(
@@ -107,20 +119,19 @@ const registrarAsistenciaQR = async (req, res) => {
 
 /**
  * Proceso de Cierre de Portón (13:30:00):
- * Busca a todos los alumnos de 5to que NO registraron entrada hoy, les inserta 'Falta'
- * y encola la alerta de WhatsApp a los apoderados que tengan teléfono registrado.
+ * Busca a todos los alumnos ACTIVOS de 5to que NO registraron entrada hoy, les inserta 'Falta'
  */
 const ejecutarCierrePorton = async (fechaObjetivo = null) => {
     const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
     const fechaCierre = fechaObjetivo || fechaSQL;
     const horaCierre = process.env.HORA_CIERRE_PORTON || '13:30:00';
 
-    // Buscar alumnos de 5to sin registro en la fecha indicada
     const [ausentes] = await pool.query(
         `SELECT e.id_estudiante, e.dni, e.nombres, e.apellidos, e.grado, e.seccion, e.telefono_apoderado
          FROM Estudiante e
          LEFT JOIN Asistencia a ON e.id_estudiante = a.estudiante_id AND a.fecha = ?
-         WHERE a.id_asistencia IS NULL`,
+         WHERE a.id_asistencia IS NULL
+           AND COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'`,
         [fechaCierre]
     );
 
@@ -166,7 +177,7 @@ const ejecutarCierrePorton = async (fechaObjetivo = null) => {
 };
 
 /**
- * POST /api/asistencia/cerrar-porton (Protegido con JWT para TOECE)
+ * POST /api/asistencia/cerrar-porton (Protegido con JWT para TOECE y Administración)
  */
 const cerrarPortonManual = async (req, res) => {
     try {
@@ -183,7 +194,8 @@ const cerrarPortonManual = async (req, res) => {
 };
 
 /**
- * GET /api/asistencia/resumen?fecha=YYYY-MM-DD&seccion=A (Protegido con JWT para Dashboard TOECE)
+ * GET /api/asistencia/resumen?fecha=YYYY-MM-DD&seccion=A
+ * Para Auxiliares, TOECE y Administración
  */
 const obtenerResumenDashboard = async (req, res) => {
     try {
@@ -191,21 +203,29 @@ const obtenerResumenDashboard = async (req, res) => {
         const fechaConsulta = req.query.fecha || fechaSQL;
         const seccionFiltro = req.query.seccion ? req.query.seccion.trim().toUpperCase() : null;
 
-        // 1. Conteo total del padrón (257 o filtrado por sección)
-        let sqlPadron = 'SELECT COUNT(*) AS total FROM Estudiante';
+        // 1. Conteo total del padrón activo (DEFINITIVA) y bajas
+        let sqlPadron = `
+            SELECT
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') = 'DEFINITIVA' THEN 1 ELSE 0 END) AS activos,
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') != 'DEFINITIVA' THEN 1 ELSE 0 END) AS bajas
+            FROM Estudiante
+        `;
         const paramsPadron = [];
         if (seccionFiltro) {
             sqlPadron += ' WHERE seccion = ?';
             paramsPadron.push(seccionFiltro);
         }
-        const [[{ total: totalEstudiantes }]] = await pool.query(sqlPadron, paramsPadron);
+        const [[conteoPadron]] = await pool.query(sqlPadron, paramsPadron);
+        const totalEstudiantes = Number(conteoPadron?.activos || 0);
+        const totalBajas = Number(conteoPadron?.bajas || 0);
 
-        // 2. Conteo por estado hoy
+        // 2. Conteo por estado en la fecha consultada (sobre estudiantes activos)
         let sqlEstados = `
             SELECT a.estado, COUNT(*) AS cantidad
             FROM Asistencia a
             INNER JOIN Estudiante e ON a.estudiante_id = e.id_estudiante
             WHERE a.fecha = ?
+              AND COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
         `;
         const paramsEstados = [fechaConsulta];
         if (seccionFiltro) {
@@ -223,21 +243,31 @@ const obtenerResumenDashboard = async (req, res) => {
         const registrados = metricas.Puntual + metricas.Tardanza + metricas.Falta;
         const sinRegistro = Math.max(0, totalEstudiantes - registrados);
 
-        // 3. Listado detallado de registros del día
-        let sqlListado = `
+        // 3. Listado completo del padrón activo cruzado con su asistencia del día
+        let sqlPadronDia = `
             SELECT a.id_asistencia, e.id_estudiante, e.dni, e.nombres, e.apellidos, e.grado, e.seccion,
-                   e.telefono_apoderado, a.fecha, a.hora_ingreso, a.estado
-            FROM Asistencia a
-            INNER JOIN Estudiante e ON a.estudiante_id = e.id_estudiante
-            WHERE a.fecha = ?
+                   e.telefono_apoderado,
+                   ? AS fecha,
+                   COALESCE(a.hora_ingreso, '--:--:--') AS hora_ingreso,
+                   COALESCE(a.estado, 'Sin Registro') AS estado
+            FROM Estudiante e
+            LEFT JOIN Asistencia a ON e.id_estudiante = a.estudiante_id AND a.fecha = ?
+            WHERE COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
         `;
-        const paramsListado = [fechaConsulta];
+        const paramsPadronDia = [fechaConsulta, fechaConsulta];
         if (seccionFiltro) {
-            sqlListado += ' AND e.seccion = ?';
-            paramsListado.push(seccionFiltro);
+            sqlPadronDia += ' AND e.seccion = ?';
+            paramsPadronDia.push(seccionFiltro);
         }
-        sqlListado += ' ORDER BY a.hora_ingreso DESC, e.seccion ASC, e.apellidos ASC';
-        const [registros] = await pool.query(sqlListado, paramsListado);
+        sqlPadronDia += `
+            ORDER BY
+                CASE WHEN a.id_asistencia IS NOT NULL THEN 0 ELSE 1 END ASC,
+                a.hora_ingreso DESC,
+                e.seccion ASC,
+                e.apellidos ASC
+        `;
+        const [padronDia] = await pool.query(sqlPadronDia, paramsPadronDia);
+        const registros = padronDia.filter(r => r.estado !== 'Sin Registro');
 
         return res.status(200).json({
             fecha: fechaConsulta,
@@ -252,9 +282,11 @@ const obtenerResumenDashboard = async (req, res) => {
                 puntuales: metricas.Puntual,
                 tardanzas: metricas.Tardanza,
                 faltas: metricas.Falta,
-                pendientes: sinRegistro
+                pendientes: sinRegistro,
+                bajas: totalBajas
             },
-            registros
+            registros,
+            padronDia
         });
 
     } catch (error) {
@@ -264,13 +296,27 @@ const obtenerResumenDashboard = async (req, res) => {
 };
 
 /**
- * GET /api/estudiantes?seccion=A&busqueda=... (Para gestionar teléfonos de apoderados en TOECE)
+ * GET /api/estudiantes?seccion=A&busqueda=...&estado=DEFINITIVA|BAJA|TODOS
  */
 const listarEstudiantes = async (req, res) => {
     try {
-        const { seccion, busqueda } = req.query;
-        let sql = 'SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado FROM Estudiante WHERE 1=1';
+        const { seccion, busqueda, estado } = req.query;
+        const filtroEstado = String(estado || 'DEFINITIVA').trim().toUpperCase();
+
+        let sql = `
+            SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado,
+                   COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+            FROM Estudiante
+            WHERE 1=1
+        `;
         const params = [];
+
+        if (filtroEstado === 'DEFINITIVA' || filtroEstado === 'ACTIVO') {
+            sql += " AND COALESCE(estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'";
+        } else if (filtroEstado === 'BAJA' || filtroEstado === 'TRASLADADO' || filtroEstado === 'INACTIVO') {
+            sql += " AND COALESCE(estado_matricula, 'DEFINITIVA') != 'DEFINITIVA'";
+        }
+        // Si filtroEstado === 'TODOS', no filtra por estado_matricula
 
         if (seccion) {
             sql += ' AND seccion = ?';
@@ -282,9 +328,22 @@ const listarEstudiantes = async (req, res) => {
             params.push(term, term, term);
         }
 
-        sql += ' ORDER BY seccion ASC, apellidos ASC';
+        sql += ' ORDER BY seccion ASC, apellidos ASC, nombres ASC';
         const [estudiantes] = await pool.query(sql, params);
-        return res.status(200).json({ total: estudiantes.length, estudiantes });
+
+        const [[resumenGlobal]] = await pool.query(`
+            SELECT
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') = 'DEFINITIVA' THEN 1 ELSE 0 END) AS totalActivos,
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') != 'DEFINITIVA' THEN 1 ELSE 0 END) AS totalBajas
+            FROM Estudiante
+        `);
+
+        return res.status(200).json({
+            total: estudiantes.length,
+            totalActivos: Number(resumenGlobal?.totalActivos || 0),
+            totalBajas: Number(resumenGlobal?.totalBajas || 0),
+            estudiantes
+        });
     } catch (error) {
         console.error('❌ Error listando estudiantes:', error);
         return res.status(500).json({ error: 'Error al listar estudiantes.' });
@@ -324,6 +383,272 @@ const actualizarTelefonoApoderado = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/estudiantes (Administración: Agregar o reactivar un estudiante individual)
+ */
+const crearEstudiante = async (req, res) => {
+    const { dni, nombres, apellidos, grado, seccion, telefono_apoderado } = req.body;
+
+    const dniLimpio = String(dni || '').trim().replace(/\D/g, '');
+    if (!/^\d{8}$/.test(dniLimpio)) {
+        return res.status(400).json({ error: 'El DNI debe contener exactamente 8 dígitos numéricos.' });
+    }
+
+    const nombresLimpio = String(nombres || '').trim().toUpperCase();
+    const apellidosLimpio = String(apellidos || '').trim().toUpperCase();
+    if (!nombresLimpio || !apellidosLimpio) {
+        return res.status(400).json({ error: 'Los apellidos y nombres del estudiante son obligatorios.' });
+    }
+
+    const gradoLimpio = normalizarGrado(grado || 'QUINTO');
+    const seccionLimpia = normalizarSeccion(seccion || 'A', 'A');
+    const telLimpio = String(telefono_apoderado || '').replace(/\D/g, '');
+    if (telLimpio && !/^(51)?9\d{8}$/.test(telLimpio)) {
+        return res.status(400).json({ error: 'El celular del apoderado debe tener 9 dígitos y empezar con 9.' });
+    }
+
+    try {
+        const [existente] = await pool.query('SELECT id_estudiante, seccion, estado_matricula FROM Estudiante WHERE dni = ?', [dniLimpio]);
+
+        await pool.query(
+            `INSERT INTO Estudiante (dni, nombres, apellidos, grado, seccion, telefono_apoderado, estado_matricula)
+             VALUES (?, ?, ?, ?, ?, ?, 'DEFINITIVA')
+             ON DUPLICATE KEY UPDATE
+                nombres = VALUES(nombres),
+                apellidos = VALUES(apellidos),
+                grado = VALUES(grado),
+                seccion = VALUES(seccion),
+                telefono_apoderado = COALESCE(VALUES(telefono_apoderado), Estudiante.telefono_apoderado),
+                estado_matricula = 'DEFINITIVA'`,
+            [dniLimpio, nombresLimpio, apellidosLimpio, gradoLimpio, seccionLimpia, telLimpio || null]
+        );
+
+        const accion = existente.length > 0 ? 'actualizado y activado' : 'registrado';
+        return res.status(200).json({
+            mensaje: `Estudiante ${apellidosLimpio}, ${nombresLimpio} (5to "${seccionLimpia}") ${accion} correctamente.`,
+            estudiante: {
+                dni: dniLimpio,
+                nombres: nombresLimpio,
+                apellidos: apellidosLimpio,
+                grado: gradoLimpio,
+                seccion: seccionLimpia,
+                telefono_apoderado: telLimpio || null,
+                estado_matricula: 'DEFINITIVA'
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error registrando estudiante:', error);
+        return res.status(500).json({ error: 'Error al registrar al estudiante en la base de datos.' });
+    }
+};
+
+/**
+ * PUT /api/estudiantes/:dni/seccion (Administración: Cambiar o trasladar de sección A-H)
+ */
+const cambiarSeccionEstudiante = async (req, res) => {
+    const { dni } = req.params;
+    const { seccion, nombres, apellidos } = req.body;
+
+    const seccionLimpia = normalizarSeccion(seccion, '');
+    if (!seccionLimpia) {
+        return res.status(400).json({ error: 'Debe indicar una sección válida (ej. A, B, C, D, E, F, G, H).' });
+    }
+
+    try {
+        const [actual] = await pool.query(
+            'SELECT nombres, apellidos, seccion FROM Estudiante WHERE dni = ?',
+            [dni.trim()]
+        );
+
+        if (actual.length === 0) {
+            return res.status(404).json({ error: 'Estudiante no encontrado.' });
+        }
+
+        const seccionAnterior = actual[0].seccion;
+        const nuevosNombres = nombres ? String(nombres).trim().toUpperCase() : actual[0].nombres;
+        const nuevosApellidos = apellidos ? String(apellidos).trim().toUpperCase() : actual[0].apellidos;
+
+        await pool.query(
+            'UPDATE Estudiante SET seccion = ?, nombres = ?, apellidos = ? WHERE dni = ?',
+            [seccionLimpia, nuevosNombres, nuevosApellidos, dni.trim()]
+        );
+
+        return res.status(200).json({
+            mensaje: `Estudiante trasladado de 5to "${seccionAnterior}" a 5to "${seccionLimpia}" correctamente.`,
+            dni: dni.trim(),
+            seccionAnterior,
+            seccionNueva: seccionLimpia
+        });
+    } catch (error) {
+        console.error('❌ Error cambiando sección:', error);
+        return res.status(500).json({ error: 'Error al cambiar la sección del estudiante.' });
+    }
+};
+
+/**
+ * PUT /api/estudiantes/:dni/estado (Administración: Dar de baja por traslado/retiro o Reactivar)
+ */
+const cambiarEstadoEstudiante = async (req, res) => {
+    const { dni } = req.params;
+    const { estado_matricula } = req.body;
+
+    const nuevoEstado = normalizarEstadoMatricula(estado_matricula);
+
+    try {
+        const [actual] = await pool.query(
+            'SELECT id_estudiante, nombres, apellidos, seccion FROM Estudiante WHERE dni = ?',
+            [dni.trim()]
+        );
+
+        if (actual.length === 0) {
+            return res.status(404).json({ error: 'Estudiante no encontrado.' });
+        }
+
+        await pool.query(
+            'UPDATE Estudiante SET estado_matricula = ? WHERE dni = ?',
+            [nuevoEstado, dni.trim()]
+        );
+
+        const textoAccion = nuevoEstado === 'DEFINITIVA'
+            ? 'reactivado en el padrón activo (DEFINITIVA)'
+            : `dado de baja como ${nuevoEstado}`;
+
+        return res.status(200).json({
+            mensaje: `El estudiante ${actual[0].apellidos}, ${actual[0].nombres} fue ${textoAccion}.`,
+            dni: dni.trim(),
+            estado_matricula: nuevoEstado
+        });
+    } catch (error) {
+        console.error('❌ Error cambiando estado de matrícula:', error);
+        return res.status(500).json({ error: 'Error al actualizar el estado del estudiante.' });
+    }
+};
+
+/**
+ * POST /api/estudiantes/importar-excel
+ * Recibe un archivo Excel SIAGIE o listado escolar en Base64 y sincroniza:
+ * - Nuevos estudiantes -> los inserta activos
+ * - Cambios de sección -> actualiza su sección
+ * - Trasladados / Retirados -> actualiza su estado_matricula a TRASLADADO/RETIRADO
+ */
+const importarExcelWeb = async (req, res) => {
+    const { archivoBase64, seccionPorDefecto } = req.body;
+
+    if (!archivoBase64) {
+        return res.status(400).json({ error: 'Debe seleccionar un archivo Excel (.xlsx o .xls) para importar.' });
+    }
+
+    try {
+        const base64Limpio = archivoBase64.includes(',')
+            ? archivoBase64.split(',')[1]
+            : archivoBase64;
+        const buffer = Buffer.from(base64Limpio, 'base64');
+
+        const { estudiantes, filasOmitidasSinDni } = extraerEstudiantesDeBufferExcel(buffer, seccionPorDefecto || 'A');
+
+        if (estudiantes.length === 0) {
+            return res.status(400).json({
+                error: 'No se detectaron estudiantes con DNI válido (8 dígitos) en el archivo seleccionado. Verifica que el Excel contenga columnas de DNI, Apellidos y Nombres.'
+            });
+        }
+
+        // Obtener el estado actual del padrón en BD para reportar qué cambió exactamente
+        const [existentesDB] = await pool.query(
+            `SELECT dni, nombres, apellidos, seccion, COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+             FROM Estudiante`
+        );
+        const mapaActual = new Map();
+        existentesDB.forEach(e => mapaActual.set(e.dni, e));
+
+        const nuevosAgregados = [];
+        const cambiosSeccion = [];
+        const bajasDetectadas = [];
+        const reactivados = [];
+        let sinCambios = 0;
+
+        for (const est of estudiantes) {
+            const previo = mapaActual.get(est.dni);
+            if (!previo) {
+                if (est.estado_matricula === 'DEFINITIVA') {
+                    nuevosAgregados.push(`${est.apellidos}, ${est.nombres} (5to "${est.seccion}")`);
+                } else {
+                    bajasDetectadas.push(`${est.apellidos}, ${est.nombres} (${est.estado_matricula})`);
+                }
+            } else {
+                let huboCambio = false;
+                if (previo.seccion !== est.seccion) {
+                    cambiosSeccion.push(`${est.apellidos}, ${est.nombres}: 5to "${previo.seccion}" → 5to "${est.seccion}"`);
+                    huboCambio = true;
+                }
+                if (previo.estado_matricula === 'DEFINITIVA' && est.estado_matricula !== 'DEFINITIVA') {
+                    bajasDetectadas.push(`${est.apellidos}, ${est.nombres} (Pasó a ${est.estado_matricula})`);
+                    huboCambio = true;
+                } else if (previo.estado_matricula !== 'DEFINITIVA' && est.estado_matricula === 'DEFINITIVA') {
+                    reactivados.push(`${est.apellidos}, ${est.nombres} (5to "${est.seccion}")`);
+                    huboCambio = true;
+                }
+                if (!huboCambio) sinCambios++;
+            }
+        }
+
+        const valoresInsertar = estudiantes.map(e => [
+            e.dni,
+            e.nombres,
+            e.apellidos,
+            e.grado,
+            e.seccion,
+            e.telefono_apoderado,
+            e.estado_matricula
+        ]);
+
+        const sql = `
+            INSERT INTO Estudiante (dni, nombres, apellidos, grado, seccion, telefono_apoderado, estado_matricula)
+            VALUES ?
+            ON DUPLICATE KEY UPDATE
+                nombres = VALUES(nombres),
+                apellidos = VALUES(apellidos),
+                grado = VALUES(grado),
+                seccion = VALUES(seccion),
+                telefono_apoderado = COALESCE(VALUES(telefono_apoderado), Estudiante.telefono_apoderado),
+                estado_matricula = VALUES(estado_matricula)
+        `;
+
+        await pool.query(sql, [valoresInsertar]);
+
+        const [[conteoFinal]] = await pool.query(`
+            SELECT
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') = 'DEFINITIVA' THEN 1 ELSE 0 END) AS totalActivos,
+                SUM(CASE WHEN COALESCE(estado_matricula, 'DEFINITIVA') != 'DEFINITIVA' THEN 1 ELSE 0 END) AS totalBajas
+            FROM Estudiante
+        `);
+
+        return res.status(200).json({
+            mensaje: `Importación completada con éxito (${estudiantes.length} registros procesados del Excel).`,
+            resumen: {
+                procesadosEnExcel: estudiantes.length,
+                nuevosAgregados: nuevosAgregados.length,
+                cambiosSeccion: cambiosSeccion.length,
+                bajasDetectadas: bajasDetectadas.length,
+                reactivados: reactivados.length,
+                sinCambios,
+                totalActivosEnPadron: Number(conteoFinal?.totalActivos || 0),
+                totalBajasEnPadron: Number(conteoFinal?.totalBajas || 0)
+            },
+            detalles: {
+                nuevosAgregados: nuevosAgregados.slice(0, 50),
+                cambiosSeccion: cambiosSeccion.slice(0, 50),
+                bajasDetectadas: bajasDetectadas.slice(0, 50),
+                reactivados: reactivados.slice(0, 50)
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error importando Excel desde la web:', error);
+        return res.status(500).json({
+            error: 'Error al procesar el archivo Excel. Asegúrate de subir un archivo .xlsx o .xls válido.'
+        });
+    }
+};
+
 // Scheduler ligero en memoria que revisa cada minuto si son las 13:30 en Perú (Lunes a Viernes)
 let ultimaFechaCierreAuto = null;
 const iniciarProgramadorCierrePorton = () => {
@@ -335,7 +660,6 @@ const iniciarProgramadorCierrePorton = () => {
             const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
             const diaSemana = new Date().toLocaleDateString('en-US', { timeZone: 'America/Lima', weekday: 'short' });
 
-            // Solo ejecuta de Lunes a Viernes cuando el reloj marca las 13:30 y aún no se ejecutó hoy
             if (!['Sat', 'Sun'].includes(diaSemana) &&
                 horaSQL.startsWith(horaCierreConfig) &&
                 ultimaFechaCierreAuto !== fechaSQL) {
@@ -346,7 +670,7 @@ const iniciarProgramadorCierrePorton = () => {
         } catch (err) {
             console.error('❌ Error en el programador automático de cierre:', err.message);
         }
-    }, 30000); // Verifica cada 30 segundos
+    }, 30000);
 };
 
 module.exports = {
@@ -355,5 +679,9 @@ module.exports = {
     obtenerResumenDashboard,
     listarEstudiantes,
     actualizarTelefonoApoderado,
+    crearEstudiante,
+    cambiarSeccionEstudiante,
+    cambiarEstadoEstudiante,
+    importarExcelWeb,
     iniciarProgramadorCierrePorton
 };

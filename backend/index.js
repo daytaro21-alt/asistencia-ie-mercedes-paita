@@ -14,17 +14,18 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 // Importar rutas y servicios
 const rutasAPI = require('./src/routes/api');
 const { inicializarWhatsApp } = require('./src/utils/whatsappService');
 const { iniciarProgramadorCierrePorton } = require('./src/controllers/asistencia.controller');
+const { inicializarBaseDeDatos } = require('./src/config/initDb');
 
 // Prefijo /api
 app.use('/api', rutasAPI);
 
-// Servir Frontend estático de producción (Kiosco QR + Panel TOECE)
+// Servir Frontend estático de producción (Kiosco QR + Panel TOECE / Auxiliar / Administración)
 app.use(express.static(path.resolve(__dirname, '../frontend')));
 
 // Healthcheck para balanceadores Cloud (Render / AWS / Railway)
@@ -48,8 +49,9 @@ app.get('/', (req, res) => {
 });
 
 // Iniciar el servidor escuchando en 0.0.0.0 para compatibilidad con contenedores Cloud
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    await inicializarBaseDeDatos();
     iniciarProgramadorCierrePorton();
     if (process.env.ENABLE_WHATSAPP !== 'false') {
         inicializarWhatsApp();

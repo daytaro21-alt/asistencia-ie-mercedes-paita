@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Carnets QR (Impresión A4) | I.E. Nuestra Señora de las Mercedes</title>
+    <link rel="icon" type="image/png" href="/INSIGNIA%20mercedes%20png.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QRCode.js ligero para renderizar los 257 QRs en alta resolución al instante -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Dimensiones exactas de carnet vertical tipo CR80 para hoja A4 (9 carnets por página: 3x3) */
+        .carnet-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 60mm);
+            gap: 5mm;
+            justify-content: center;
+        }
+
+        .carnet-card {
+            width: 60mm;
+            height: 90mm;
+            border: 1.5px solid #9e0b22;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #ffffff;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
+            body {
+                background: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-after: always;
+                break-after: page;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+
+    <!-- BARRA DE CONTROL (SE OCULTA AUTOMÁTICAMENTE AL IMPRIMIR / GUARDAR PDF) -->
+    <header class="no-print bg-[#7f091c] text-white border-b-4 border-yellow-400 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia" class="w-10 h-12 bg-white rounded-lg p-1 border border-yellow-400 object-contain">
+                <div>
+                    <h1 class="text-base font-extrabold">Generador Masivo de Carnets Estudiantiles QR</h1>
+                    <p class="text-xs text-red-100">I.E. Nuestra Señora de las Mercedes • Formato A4 listo para imprenta / enmicado (9 carnets por hoja)</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+                <select id="filtroSeccionCarnet" onchange="filtrarYRenderizarCarnets()"
+                    class="bg-white text-slate-900 font-bold text-xs px-3 py-2 rounded-lg border-2 border-yellow-400 focus:outline-none">
+                    <option value="">Todas las Secciones (257 alumnos)</option>
+                    <option value="A">5to Sección "A"</option>
+                    <option value="B">5to Sección "B"</option>
+                    <option value="C">5to Sección "C"</option>
+                    <option value="D">5to Sección "D"</option>
+                    <option value="E">5to Sección "E"</option>
+                    <option value="F">5to Sección "F"</option>
+                    <option value="G">5to Sección "G"</option>
+                    <option value="H">5to Sección "H"</option>
+                </select>
+
+                <input type="text" id="buscarAlumnoCarnet" oninput="filtrarYRenderizarCarnets()"
+                    placeholder="Buscar DNI o apellido..."
+                    class="bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-red-300 w-44 focus:outline-none">
+
+                <button onclick="window.print()"
+                    class="bg-yellow-400 hover:bg-yellow-300 text-[#5c0513] font-extrabold text-xs px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+                    🖨️ Imprimir / Guardar PDF
+                </button>
+
+                <a href="/" class="bg-red-900/80 hover:bg-red-950 text-white text-xs font-bold px-3 py-2 rounded-lg border border-red-700">
+                    ← Volver al Panel
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTADOR INFORMATIVO -->
+    <div class="no-print max-w-6xl mx-auto px-4 py-3 flex items-center justify-between text-xs text-slate-600">
+        <span id="infoCantidadCarnets" class="font-bold">Cargando padrón de 5to de Secundaria...</span>
+        <span>💡 <strong>Tip de impresión:</strong> En la ventana de impresión activa la casilla <strong>"Gráficos de fondo"</strong> y escala <strong>100%</strong>.</span>
+    </div>
+
+    <!-- CONTENEDOR DE PÁGINAS A4 DE CARNETS -->
+    <main id="contenedorPaginasCarnets" class="py-4 space-y-8">
+        <p class="text-center text-sm text-slate-500 py-12">Generando carnets institucionales...</p>
+    </main>
+
+    <script>
+        let todosLosEstudiantes = [];
+        const tokenJWT = localStorage.getItem('toece_jwt');
+
+        async function cargarEstudiantesParaCarnets() {
+            if (!tokenJWT) {
+                alert('Primero debes iniciar sesión en el Panel TOECE para generar los carnets.');
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/estudiantes', {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                if (!res.ok) {
+                    alert('Sesión expirada. Vuelve a iniciar sesión en el Panel TOECE.');
+                    window.location.href = '/';
+                    return;
+                }
+                const data = await res.json();
+                todosLosEstudiantes = data.estudiantes || [];
+                filtrarYRenderizarCarnets();
+            } catch (err) {
+                document.getElementById('contenedorPaginasCarnets').innerHTML =
+                    '<p class="text-center text-rose-600 font-bold py-12">Error al conectar con el servidor.</p>';
+            }
+        }
+
+        function filtrarYRenderizarCarnets() {
+            const seccion = document.getElementById('filtroSeccionCarnet').value;
+            const busqueda = document.getElementById('buscarAlumnoCarnet').value.trim().toLowerCase();
+
+            const filtrados = todosLosEstudiantes.filter(e => {
+                const coincideSec = !seccion || e.seccion === seccion;
+                const coincideBusq = !busqueda ||
+                    e.dni.includes(busqueda) ||
+                    e.apellidos.toLowerCase().includes(busqueda) ||
+                    e.nombres.toLowerCase().includes(busqueda);
+                return coincideSec && coincideBusq;
+            });
+
+            const totalHojas = Math.ceil(filtrados.length / 9);
+            document.getElementById('infoCantidadCarnets').innerText =
+                `Mostrando ${filtrados.length} carnet(s) • Equivalente a ${totalHojas} hoja(s) A4 lista(s) para cortar y enmicar`;
+
+            const contenedor = document.getElementById('contenedorPaginasCarnets');
+            if (filtrados.length === 0) {
+                contenedor.innerHTML = '<p class="text-center text-slate-500 py-12">No se encontraron alumnos con ese filtro.</p>';
+                return;
+            }
+
+            // Agrupar de 9 en 9 carnets por hoja A4 (3 columnas x 3 filas)
+            let htmlPaginas = '';
+            for (let i = 0; i < filtrados.length; i += 9) {
+                const grupo = filtrados.slice(i, i + 9);
+                const esUltimaHoja = (i + 9) >= filtrados.length;
+
+                htmlPaginas += `
+                    <div class="carnet-grid ${esUltimaHoja ? '' : 'page-break'}">
+                        ${grupo.map(est => crearHTMLCarnet(est)).join('')}
+                    </div>
+                `;
+            }
+
+            contenedor.innerHTML = htmlPaginas;
+
+            // Renderizar los códigos QR en nivel 'H' dentro de cada tarjeta
+            filtrados.forEach(est => {
+                const qrDiv = document.getElementById(`qr_${est.dni}`);
+                if (qrDiv) {
+                    new QRCode(qrDiv, {
+                        text: est.dni.trim(),
+                        width: 118,
+                        height: 118,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }
+            });
+        }
+
+        function crearHTMLCarnet(est) {
+            return `
+                <div class="carnet-card shadow-sm">
+                    <!-- Cabecera Guinda/Roja y Dorada Institucional -->
+                    <div class="bg-gradient-to-r from-[#7f091c] via-[#9e0b22] to-[#7f091c] text-white px-2.5 py-2 border-b-[3px] border-yellow-400 flex items-center gap-2">
+                        <div class="w-8 h-9 bg-white rounded p-0.5 border border-yellow-400 shrink-0 flex items-center justify-center">
+                            <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia" class="w-full h-full object-contain">
+                        </div>
+                        <div class="leading-tight">
+                            <p class="text-[7.5px] font-bold uppercase tracking-wider text-yellow-300">Paita - SABER, PROGRESO Y FELICIDAD</p>
+                            <h2 class="text-[9.5px] font-black uppercase leading-tight text-white">I.E. Nuestra Señora de las Mercedes</h2>
+                        </div>
+                    </div>
+
+                    <!-- Cuerpo del Carnet: QR + Datos del Estudiante -->
+                    <div class="flex-1 flex flex-col items-center justify-center px-2.5 py-1.5 text-center">
+                        <span class="text-[8px] font-extrabold uppercase tracking-widest bg-red-50 text-[#9e0b22] border border-red-200 px-2 py-0.5 rounded-full mb-1.5">
+                            CARNET DE ASISTENCIA 2026
+                        </span>
+
+                        <!-- Caja del Código QR Nivel H -->
+                        <div class="p-1.5 bg-white border-2 border-yellow-400 rounded-lg shadow-sm mb-1.5 flex items-center justify-center">
+                            <div id="qr_${est.dni}"></div>
+                        </div>
+
+                        <!-- Apellidos y Nombres -->
+                        <p class="text-[10.5px] font-black text-slate-900 uppercase leading-tight line-clamp-1">
+                            ${est.apellidos}
+                        </p>
+                        <p class="text-[9.5px] font-bold text-slate-700 uppercase leading-tight line-clamp-1 mt-0.5">
+                            ${est.nombres}
+                        </p>
+
+                        <!-- Grado, Sección y DNI -->
+                        <div class="mt-2 w-full grid grid-cols-2 gap-1 bg-amber-50/90 border border-yellow-400 rounded-md px-2 py-1 text-center">
+                            <div class="border-r border-yellow-400/80 pr-1">
+                                <p class="text-[7px] font-bold uppercase text-slate-500">GRADO Y SECCIÓN</p>
+                                <p class="text-[10px] font-black text-[#9e0b22]">5to "${est.seccion}"</p>
+                            </div>
+                            <div class="pl-1">
+                                <p class="text-[7px] font-bold uppercase text-slate-500">DNI ESTUDIANTE</p>
+                                <p class="text-[10px] font-mono font-black text-slate-900">${est.dni}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pie del Carnet -->
+                    <div class="bg-[#7f091c] text-yellow-300 text-[7px] font-bold uppercase tracking-widest text-center py-1 border-t border-yellow-400">
+                        NIVEL SECUNDARIA • TURNO TARDE
+                    </div>
+                </div>
+            `;
+        }
+
+        cargarEstudiantesParaCarnets();
+    </script>
+</body>
+</html>

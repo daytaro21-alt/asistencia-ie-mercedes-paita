@@ -1,6 +1,13 @@
 // src/middlewares/auth.middleware.js
 const jwt = require('jsonwebtoken');
 
+const normalizarRolToken = (rol) => {
+    const r = String(rol || '').trim().toLowerCase();
+    if (r === 'admin' || r === 'administracion' || r === 'administración') return 'Administracion';
+    if (r === 'auxiliar') return 'Auxiliar';
+    return 'TOECE';
+};
+
 const verificarToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
 
@@ -15,6 +22,7 @@ const verificarToken = (req, res, next) => {
     try {
         const secret = process.env.JWT_SECRET || 'mercedes_toece_secret_key_2026_piloto';
         const decoded = jwt.verify(token, secret);
+        decoded.rol = normalizarRolToken(decoded.rol);
 
         // Inyectamos los datos del usuario autenticado en la request
         req.usuario = decoded;
@@ -28,7 +36,7 @@ const verificarToken = (req, res, next) => {
 };
 
 /**
- * Middleware opcional para restringir rutas por rol (ej. ['Admin', 'Auxiliar_TOECE'])
+ * Middleware para restringir rutas por rol (ej. ['Administracion', 'TOECE'])
  */
 const verificarRol = (rolesPermitidos = []) => {
     return (req, res, next) => {
@@ -36,9 +44,10 @@ const verificarRol = (rolesPermitidos = []) => {
             return res.status(401).json({ error: 'Usuario no autenticado.' });
         }
 
-        if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(req.usuario.rol)) {
+        const rolActual = normalizarRolToken(req.usuario.rol);
+        if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(rolActual)) {
             return res.status(403).json({
-                error: `Permisos insuficientes. Se requiere rol: ${rolesPermitidos.join(' o ')}.`
+                error: `Permisos insuficientes para el perfil ${rolActual}. Se requiere perfil: ${rolesPermitidos.join(' o ')}.`
             });
         }
 

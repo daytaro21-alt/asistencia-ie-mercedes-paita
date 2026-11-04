@@ -7,32 +7,29 @@ const {
     cerrarPortonManual,
     obtenerResumenDashboard,
     listarEstudiantes,
-    actualizarTelefonoApoderado
+    actualizarTelefonoApoderado,
+    crearEstudiante,
+    cambiarSeccionEstudiante,
+    cambiarEstadoEstudiante,
+    importarExcelWeb
 } = require('../controllers/asistencia.controller');
-const { login } = require('../controllers/auth.controller');
-const { verificarToken } = require('../middlewares/auth.middleware');
+const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 // ==========================================
 // 1. RUTAS PÚBLICAS / KIOSCO PORTÓN
 // ==========================================
-// Autenticación del personal de TOECE
+// Autenticación de los 3 perfiles: Auxiliar, TOECE, Administracion
 router.post('/auth/login', login);
 
 // Escáner QR en portón (12:30 - 12:45 Puntual | 12:45:01 - 13:30 Tardanza)
 router.post('/registrar-asistencia', registrarAsistenciaQR);
 
 // ==========================================
-// 2. RUTAS PROTEGIDAS (PANEL TOECE - JWT)
+// 2. RUTAS PARA TODOS LOS PERFILES (Auxiliar, TOECE, Administracion)
 // ==========================================
-// Resumen estadístico y tabla en tiempo real del día
+// Resumen estadístico y consulta de quiénes faltaron, no faltaron y llegaron tarde
 router.get('/asistencia/resumen', verificarToken, obtenerResumenDashboard);
-
-// Cierre manual de portón (marca Falta a los que no asistieron y envía WhatsApp)
-router.post('/asistencia/cerrar-porton', verificarToken, cerrarPortonManual);
-
-// Directorio de estudiantes de 5to y actualización de celular de apoderados
-router.get('/estudiantes', verificarToken, listarEstudiantes);
-router.put('/estudiantes/:dni/telefono', verificarToken, actualizarTelefonoApoderado);
 
 // Agente Analítico de IA (Gemini 2.5 Flash + Function Calling)
 router.post('/chat', verificarToken, async (req, res) => {
@@ -43,7 +40,7 @@ router.post('/chat', verificarToken, async (req, res) => {
             return res.status(400).json({ error: "Debes enviar un mensaje al agente." });
         }
 
-        console.log(`[TOECE (${req.usuario.username}) consulta a IA]: ${mensaje}`);
+        console.log(`[${req.usuario.rol} (${req.usuario.username}) consulta a IA]: ${mensaje}`);
 
         const respuestaAgente = await procesarMensajeTOECE(mensaje, fecha);
         return res.json({ respuesta: respuestaAgente });
@@ -53,5 +50,34 @@ router.post('/chat', verificarToken, async (req, res) => {
         return res.status(500).json({ error: "El agente tuvo un problema al procesar tu solicitud. Verifica tu GEMINI_API_KEY en el archivo .env." });
     }
 });
+
+// ==========================================
+// 3. RUTAS DE TOECE Y ADMINISTRACIÓN
+// ==========================================
+// Cierre manual de portón (marca Falta a los que no asistieron y envía WhatsApp)
+router.post('/asistencia/cerrar-porton', verificarToken, verificarRol(['TOECE', 'Administracion']), cerrarPortonManual);
+
+// Directorio de estudiantes de 5to y actualización de celular de apoderados
+router.get('/estudiantes', verificarToken, verificarRol(['TOECE', 'Administracion']), listarEstudiantes);
+router.put('/estudiantes/:dni/telefono', verificarToken, verificarRol(['TOECE', 'Administracion']), actualizarTelefonoApoderado);
+
+// ==========================================
+// 4. RUTAS EXCLUSIVAS DE ADMINISTRACIÓN
+// ==========================================
+// Agregar un estudiante nuevo o reactivarlo
+router.post('/estudiantes', verificarToken, verificarRol(['Administracion']), crearEstudiante);
+
+// Cambiar o trasladar de sección a un estudiante (ej. 5to A -> 5to C)
+router.put('/estudiantes/:dni/seccion', verificarToken, verificarRol(['Administracion']), cambiarSeccionEstudiante);
+
+// Dar de baja (TRASLADADO / RETIRADO) o reactivar (DEFINITIVA) a un estudiante
+router.put('/estudiantes/:dni/estado', verificarToken, verificarRol(['Administracion']), cambiarEstadoEstudiante);
+
+// Importar / sincronizar lista de estudiantes desde archivo Excel SIAGIE (.xlsx / .xls)
+router.post('/estudiantes/importar-excel', verificarToken, verificarRol(['Administracion']), importarExcelWeb);
+
+// Gestión de usuarios y perfiles del sistema
+router.get('/usuarios', verificarToken, verificarRol(['Administracion']), listarUsuarios);
+router.post('/usuarios', verificarToken, verificarRol(['Administracion']), crearOActualizarUsuario);
 
 module.exports = router;
