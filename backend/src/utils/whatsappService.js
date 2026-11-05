@@ -1,17 +1,43 @@
 // src/utils/whatsappService.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcodeTerminal = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const path = require('path');
+const fs = require('fs');
 
 let clienteListo = false;
+let ultimoQrDataUrl = null;
+let estadoTexto = 'Iniciando servicio de WhatsApp...';
 const colaMensajes = [];
 let procesandoCola = false;
+
+const rutaAuth = path.resolve(__dirname, '../../.wwebjs_auth');
+
+/**
+ * Elimina archivos candado (SingletonLock / SingletonCookie / SingletonSocket)
+ * que Chromium deja huérfanos cuando AWS Academy apaga la instancia EC2 de golpe.
+ */
+const limpiarCandadosChromium = () => {
+    try {
+        const dirSesion = path.join(rutaAuth, 'session-bot-toece-mercedes');
+        const archivosCandado = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lockfile'];
+        for (const nombre of archivosCandado) {
+            const p = path.join(dirSesion, nombre);
+            try {
+                if (fs.existsSync(p) || fs.lstatSync(p)) {
+                    fs.rmSync(p, { force: true });
+                    console.log(`🧹 [WhatsApp] Candado huérfano eliminado: ${nombre}`);
+                }
+            } catch (_) {}
+        }
+    } catch (_) {}
+};
 
 // Configuración de instancia única con persistencia de sesión local
 const client = new Client({
     authStrategy: new LocalAuth({
         clientId: 'bot-toece-mercedes',
-        dataPath: path.resolve(__dirname, '../../.wwebjs_auth')
+        dataPath: rutaAuth
     }),
     puppeteer: {
         headless: true,
@@ -28,22 +54,31 @@ const client = new Client({
 
 let procesandoAuth = false;
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
+    clienteListo = false;
+    estadoTexto = 'Esperando escaneo de código QR desde el celular';
+    try {
+        ultimoQrDataUrl = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
+    } catch (_) {}
+
     console.log('\n==================================================');
     console.log('📱 ESCANEA ESTE CÓDIGO QR CON EL WHATSAPP DE TOECE:');
     console.log('==================================================');
-    qrcode.generate(qr, { small: true });
+    qrcodeTerminal.generate(qr, { small: true });
 });
 
 client.on('ready', async () => {
-    // Pequeña espera de estabilización post-navegación del DOM de WhatsApp Web
     await new Promise(resolve => setTimeout(resolve, 2500));
     clienteListo = true;
+    ultimoQrDataUrl = null;
+    estadoTexto = 'Conectado y listo para enviar alertas';
     console.log('✅ Servicio de WhatsApp (TOECE) conectado y listo para enviar alertas.');
-    procesarCola(); // Drena mensajes pendientes si se encolaron durante el arranque
+    procesarCola();
 });
 
 client.on('authenticated', () => {
+    ultimoQrDataUrl = null;
+    estadoTexto = 'Autenticado. Sincronizando sesión...';
     if (!procesandoAuth) {
         procesandoAuth = true;
         console.log('🔐 Sesión de WhatsApp autenticada (LocalAuth).');
@@ -52,19 +87,17 @@ client.on('authenticated', () => {
 
 client.on('auth_failure', (msg) => {
     clienteListo = false;
+    estadoTexto = `Error de autenticación: ${msg}`;
     console.error('❌ Error de autenticación en WhatsApp:', msg);
 });
 
 client.on('disconnected', (reason) => {
     clienteListo = false;
+    procesandoAuth = false;
+    estadoTexto = `Desconectado (${reason})`;
     console.warn('⚠️ WhatsApp desconectado:', reason);
 });
 
-/**
- * Normaliza un número telefónico al estándar de Perú (51 + 9 dígitos)
- * @param {string} telefono
- * @returns {string|null} Número formateado o null si es inválido
- */
 const normalizarTelefonoPeru = (telefono) => {
     if (!telefono) return null;
     const soloDigitos = String(telefono).replace(/\D/g, '');
@@ -78,9 +111,6 @@ const normalizarTelefonoPeru = (telefono) => {
     return null;
 };
 
-/**
- * Worker asíncrono con Jitter (3.5s a 6.5s) para evitar bloqueos por spam en Meta
- */
 const procesarCola = async () => {
     if (procesandoCola || !clienteListo || colaMensajes.length === 0) return;
 
@@ -95,12 +125,10 @@ const procesarCola = async () => {
             if (!numberId) {
                 console.warn(`⚠️ El número ${item.telefonoNormalizado} (${item.alumno}) no tiene cuenta activa de WhatsApp.`);
             } else {
-                // sendSeen: false evita fallos de evaluación en el DOM en las versiones recientes de WhatsApp Web
                 await client.sendMessage(numberId._serialized, item.mensaje, { sendSeen: false });
                 console.log(`📨 Alerta WhatsApp enviada a ${item.telefonoNormalizado} [Alumno: ${item.alumno}]`);
             }
         } catch (error) {
-            // Si el frame de Puppeteer se recargó en caliente, reencolamos hasta 2 veces
             item.reintentos = (item.reintentos || 0) + 1;
             if (error.message.includes('detached Frame') && item.reintentos <= 2) {
                 console.warn(`🔄 Reintentando envío a ${item.telefonoNormalizado} tras recarga interna de frame (${item.reintentos}/2)...`);
@@ -111,7 +139,6 @@ const procesarCola = async () => {
             }
         }
 
-        // Pausa aleatoria entre 3500ms y 6500ms antes del siguiente envío
         if (colaMensajes.length > 0) {
             const delayMs = Math.floor(Math.random() * (6500 - 3500 + 1)) + 3500;
             await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -121,14 +148,6 @@ const procesarCola = async () => {
     procesandoCola = false;
 };
 
-/**
- * Encola una alerta de asistencia (Tardanza/Falta) sin bloquear el hilo principal
- * @param {string} telefono - Teléfono del apoderado
- * @param {string} nombreAlumno - Nombres y apellidos del estudiante
- * @param {string} hora - Hora del registro (HH:mm:ss)
- * @param {string} estado - 'Tardanza' o 'Falta'
- * @param {string} fecha - Fecha (YYYY-MM-DD)
- */
 const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza', fecha = '') => {
     const telefonoNormalizado = normalizarTelefonoPeru(telefono);
 
@@ -157,18 +176,27 @@ const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza',
         mensaje
     });
 
-    // Dispara el worker en background
     setImmediate(() => procesarCola());
 };
 
 const inicializarWhatsApp = () => {
+    limpiarCandadosChromium();
     console.log('🔄 Inicializando cliente de WhatsApp (LocalAuth)...');
     client.initialize().catch(err => {
+        estadoTexto = `Error al iniciar navegador WhatsApp: ${err.message}`;
         console.error('❌ No se pudo inicializar el cliente de WhatsApp:', err.message);
     });
 };
 
+const obtenerEstadoWhatsApp = () => ({
+    conectado: clienteListo,
+    estado: estadoTexto,
+    qrDataUrl: clienteListo ? null : ultimoQrDataUrl,
+    colaPendiente: colaMensajes.length
+});
+
 module.exports = {
     inicializarWhatsApp,
-    enviarAlertaWhatsApp
+    enviarAlertaWhatsApp,
+    obtenerEstadoWhatsApp
 };

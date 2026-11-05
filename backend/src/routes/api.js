@@ -15,6 +15,7 @@ const {
 } = require('../controllers/asistencia.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { obtenerEstadoWhatsApp } = require('../utils/whatsappService');
 
 // ==========================================
 // 1. RUTAS PÚBLICAS / KIOSCO PORTÓN
@@ -60,6 +61,11 @@ router.post('/asistencia/cerrar-porton', verificarToken, verificarRol(['TOECE', 
 // Directorio de estudiantes de 5to y actualización de celular de apoderados
 router.get('/estudiantes', verificarToken, verificarRol(['TOECE', 'Administracion']), listarEstudiantes);
 router.put('/estudiantes/:dni/telefono', verificarToken, verificarRol(['TOECE', 'Administracion']), actualizarTelefonoApoderado);
+
+// Estado de conexión de WhatsApp y QR para vincular desde la web
+router.get('/whatsapp/estado', verificarToken, verificarRol(['TOECE', 'Administracion']), (req, res) => {
+    return res.status(200).json(obtenerEstadoWhatsApp());
+});
 
 // ==========================================
 // 4. RUTAS EXCLUSIVAS DE ADMINISTRACIÓN

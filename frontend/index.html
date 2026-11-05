@@ -436,7 +436,27 @@
                 <!-- ========================================================= -->
                 <!-- SUB-VISTA B: DIRECTORIO Y TELÉFONOS DE APODERADOS         -->
                 <!-- ========================================================= -->
-                <div id="panelDirectorioApoderados" class="hidden">
+                <div id="panelDirectorioApoderados" class="hidden space-y-4">
+                    <!-- Tarjeta de Estado de Conexión y Vinculación QR de WhatsApp -->
+                    <div id="cajaEstadoWhatsApp" class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <span id="iconoEstadoWsp" class="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></span>
+                            <div>
+                                <p class="text-xs font-extrabold text-slate-900" id="tituloEstadoWsp">Verificando estado de WhatsApp...</p>
+                                <p class="text-[11px] text-slate-500" id="subtituloEstadoWsp">Comprobando vinculación con el servidor</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="consultarEstadoWhatsApp()"
+                            class="text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg transition">
+                            🔄 Actualizar Estado / Ver QR
+                        </button>
+                    </div>
+                    <div id="contenedorQrWhatsAppWeb" class="hidden bg-amber-50/80 border-2 border-dorado-400 rounded-2xl p-4 text-center space-y-2">
+                        <p class="text-xs font-extrabold text-mercedes-800 uppercase">📱 Escanea este código QR desde el WhatsApp de tu celular</p>
+                        <p class="text-[11px] text-slate-600">Abre WhatsApp en tu teléfono → <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong></p>
+                        <img id="imgQrWhatsAppWeb" src="" alt="QR WhatsApp" class="mx-auto w-52 h-52 rounded-xl border-2 border-white shadow-md bg-white p-1">
+                    </div>
+
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <div>
                             <h3 class="text-sm font-extrabold text-mercedes-800">Celulares de Apoderados (Alertas WhatsApp)</h3>
@@ -1191,8 +1211,44 @@
         // =====================================================
         // LÓGICA 4: DIRECTORIO DE APODERADOS (WHATSAPP)
         // =====================================================
+        async function consultarEstadoWhatsApp() {
+            if (!tokenJWT) return;
+            try {
+                const res = await fetch(`${API_BASE}/whatsapp/estado`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const icono = document.getElementById('iconoEstadoWsp');
+                const titulo = document.getElementById('tituloEstadoWsp');
+                const sub = document.getElementById('subtituloEstadoWsp');
+                const cajaQr = document.getElementById('contenedorQrWhatsAppWeb');
+                const imgQr = document.getElementById('imgQrWhatsAppWeb');
+
+                if (data.conectado) {
+                    icono.className = 'w-3 h-3 rounded-full bg-emerald-500';
+                    titulo.innerText = '✅ WhatsApp Conectado y Activo';
+                    sub.innerText = 'El servidor está listo para enviar alertas automáticas de tardanzas y faltas.';
+                    cajaQr.classList.add('hidden');
+                } else if (data.qrDataUrl) {
+                    icono.className = 'w-3 h-3 rounded-full bg-amber-500 animate-ping';
+                    titulo.innerText = '⚠️ WhatsApp Desconectado — Escanea el QR abajo';
+                    sub.innerText = data.estado;
+                    imgQr.src = data.qrDataUrl;
+                    cajaQr.classList.remove('hidden');
+                } else {
+                    icono.className = 'w-3 h-3 rounded-full bg-rose-500';
+                    titulo.innerText = '⏳ ' + (data.estado || 'Iniciando WhatsApp...');
+                    sub.innerText = 'Espera unos segundos y pulsa "Actualizar Estado / Ver QR".';
+                    cajaQr.classList.add('hidden');
+                }
+            } catch (_) {}
+        }
+
         async function cargarDirectorioEstudiantes() {
             if (!tokenJWT) return;
+            consultarEstadoWhatsApp();
             const busqueda = document.getElementById('busquedaEstudiante').value.trim();
             const seccion = document.getElementById('filtroSeccionDir').value;
 
