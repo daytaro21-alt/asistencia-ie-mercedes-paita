@@ -10,13 +10,21 @@ const pool = require('./db');
  */
 async function inicializarBaseDeDatos() {
     try {
-        // 1. Verificar columna estado_matricula en Estudiante
+        // 1. Verificar columna estado_matricula y hora_limite_puntual en Estudiante
         const [colsEstudiante] = await pool.query("SHOW COLUMNS FROM Estudiante LIKE 'estado_matricula'");
         if (colsEstudiante.length === 0) {
             await pool.query(
                 "ALTER TABLE Estudiante ADD COLUMN estado_matricula VARCHAR(20) NOT NULL DEFAULT 'DEFINITIVA' AFTER telefono_apoderado"
             );
             console.log("✅ [DB Mig] Columna 'estado_matricula' añadida a la tabla Estudiante.");
+        }
+
+        const [colsPermiso] = await pool.query("SHOW COLUMNS FROM Estudiante LIKE 'hora_limite_puntual'");
+        if (colsPermiso.length === 0) {
+            await pool.query(
+                "ALTER TABLE Estudiante ADD COLUMN hora_limite_puntual VARCHAR(10) DEFAULT NULL AFTER estado_matricula"
+            );
+            console.log("✅ [DB Mig] Columna 'hora_limite_puntual' (Permiso 1:00 PM) añadida a la tabla Estudiante.");
         }
 
         // 2. Asegurar que la columna 'rol' en 'usuario' sea VARCHAR(30) (por si era ENUM antiguo)

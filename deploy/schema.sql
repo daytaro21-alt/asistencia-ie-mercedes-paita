@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS Estudiante (
     seccion VARCHAR(10) NOT NULL,
     telefono_apoderado VARCHAR(15) DEFAULT NULL,
     estado_matricula VARCHAR(20) NOT NULL DEFAULT 'DEFINITIVA',
+    hora_limite_puntual VARCHAR(10) DEFAULT NULL,
     INDEX idx_grado_seccion (grado, seccion),
     INDEX idx_estado_matricula (estado_matricula)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

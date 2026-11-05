@@ -34,7 +34,8 @@ const registrarAsistenciaQR = async (req, res) => {
     try {
         const [estudiantes] = await pool.query(
             `SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado,
-                    COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+                    COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula,
+                    hora_limite_puntual
              FROM Estudiante WHERE dni = ?`,
             [dni.trim()]
         );
@@ -56,7 +57,8 @@ const registrarAsistenciaQR = async (req, res) => {
 
         const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
 
-        const horaLimitePuntual = process.env.HORA_LIMITE_PUNTUAL || '12:45:00';
+        // Si el estudiante tiene permiso especial por trabajo (ej. '13:00:00'), se respeta su hora límite
+        const horaLimitePuntual = estudiante.hora_limite_puntual || process.env.HORA_LIMITE_PUNTUAL || '12:45:00';
         const horaCierrePorton = process.env.HORA_CIERRE_PORTON || '13:30:00';
 
         if (process.env.BLOQUEAR_DESPUES_CIERRE === 'true' && horaSQL > horaCierrePorton) {
@@ -108,7 +110,8 @@ const registrarAsistenciaQR = async (req, res) => {
             seccion: estudiante.seccion,
             fecha: fechaSQL,
             hora: horaSQL,
-            estado: estadoAsistencia
+            estado: estadoAsistencia,
+            hora_limite_puntual: estudiante.hora_limite_puntual || null
         });
 
     } catch (error) {
@@ -246,7 +249,7 @@ const obtenerResumenDashboard = async (req, res) => {
         // 3. Listado completo del padrón activo cruzado con su asistencia del día
         let sqlPadronDia = `
             SELECT a.id_asistencia, e.id_estudiante, e.dni, e.nombres, e.apellidos, e.grado, e.seccion,
-                   e.telefono_apoderado,
+                   e.telefono_apoderado, e.hora_limite_puntual,
                    ? AS fecha,
                    COALESCE(a.hora_ingreso, '--:--:--') AS hora_ingreso,
                    COALESCE(a.estado, 'Sin Registro') AS estado
@@ -305,7 +308,8 @@ const listarEstudiantes = async (req, res) => {
 
         let sql = `
             SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, telefono_apoderado,
-                   COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+                   COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula,
+                   hora_limite_puntual
             FROM Estudiante
             WHERE 1=1
         `;
@@ -387,7 +391,7 @@ const actualizarTelefonoApoderado = async (req, res) => {
  * POST /api/estudiantes (Administración: Agregar o reactivar un estudiante individual)
  */
 const crearEstudiante = async (req, res) => {
-    const { dni, nombres, apellidos, grado, seccion, telefono_apoderado } = req.body;
+    const { dni, nombres, apellidos, grado, seccion, telefono_apoderado, permiso_1pm } = req.body;
 
     const dniLimpio = String(dni || '').trim().replace(/\D/g, '');
     if (!/^\d{8}$/.test(dniLimpio)) {
@@ -407,20 +411,23 @@ const crearEstudiante = async (req, res) => {
         return res.status(400).json({ error: 'El celular del apoderado debe tener 9 dígitos y empezar con 9.' });
     }
 
+    const horaLimite = permiso_1pm ? '13:00:00' : null;
+
     try {
         const [existente] = await pool.query('SELECT id_estudiante, seccion, estado_matricula FROM Estudiante WHERE dni = ?', [dniLimpio]);
 
         await pool.query(
-            `INSERT INTO Estudiante (dni, nombres, apellidos, grado, seccion, telefono_apoderado, estado_matricula)
-             VALUES (?, ?, ?, ?, ?, ?, 'DEFINITIVA')
+            `INSERT INTO Estudiante (dni, nombres, apellidos, grado, seccion, telefono_apoderado, estado_matricula, hora_limite_puntual)
+             VALUES (?, ?, ?, ?, ?, ?, 'DEFINITIVA', ?)
              ON DUPLICATE KEY UPDATE
                 nombres = VALUES(nombres),
                 apellidos = VALUES(apellidos),
                 grado = VALUES(grado),
                 seccion = VALUES(seccion),
                 telefono_apoderado = COALESCE(VALUES(telefono_apoderado), Estudiante.telefono_apoderado),
-                estado_matricula = 'DEFINITIVA'`,
-            [dniLimpio, nombresLimpio, apellidosLimpio, gradoLimpio, seccionLimpia, telLimpio || null]
+                estado_matricula = 'DEFINITIVA',
+                hora_limite_puntual = COALESCE(VALUES(hora_limite_puntual), Estudiante.hora_limite_puntual)`,
+            [dniLimpio, nombresLimpio, apellidosLimpio, gradoLimpio, seccionLimpia, telLimpio || null, horaLimite]
         );
 
         const accion = existente.length > 0 ? 'actualizado y activado' : 'registrado';
@@ -433,12 +440,63 @@ const crearEstudiante = async (req, res) => {
                 grado: gradoLimpio,
                 seccion: seccionLimpia,
                 telefono_apoderado: telLimpio || null,
-                estado_matricula: 'DEFINITIVA'
+                estado_matricula: 'DEFINITIVA',
+                hora_limite_puntual: horaLimite
             }
         });
     } catch (error) {
         console.error('❌ Error registrando estudiante:', error);
         return res.status(500).json({ error: 'Error al registrar al estudiante en la base de datos.' });
+    }
+};
+
+/**
+ * PUT /api/estudiantes/:dni/permiso (Activar o desactivar permiso de ingreso 1:00 PM por trabajo)
+ */
+const cambiarPermisoEstudiante = async (req, res) => {
+    const { dni } = req.params;
+    const { permiso_1pm } = req.body;
+
+    const nuevaHoraLimite = permiso_1pm ? '13:00:00' : null;
+
+    try {
+        const [actual] = await pool.query(
+            'SELECT id_estudiante, nombres, apellidos, seccion FROM Estudiante WHERE dni = ?',
+            [dni.trim()]
+        );
+
+        if (actual.length === 0) {
+            return res.status(404).json({ error: 'Estudiante no encontrado.' });
+        }
+
+        await pool.query(
+            'UPDATE Estudiante SET hora_limite_puntual = ? WHERE dni = ?',
+            [nuevaHoraLimite, dni.trim()]
+        );
+
+        // Si se le activa el permiso 1:00 PM y hoy registró ingreso hasta las 13:00:00 como Tardanza, actualizar a Puntual
+        if (nuevaHoraLimite === '13:00:00') {
+            const { fechaSQL } = obtenerFechaHoraPeru();
+            await pool.query(
+                `UPDATE Asistencia
+                 SET estado = 'Puntual'
+                 WHERE estudiante_id = ? AND fecha = ? AND hora_ingreso <= '13:00:00' AND estado = 'Tardanza'`,
+                [actual[0].id_estudiante, fechaSQL]
+            );
+        }
+
+        const msg = nuevaHoraLimite
+            ? `Permiso de ingreso hasta la 1:00 PM ACTIVADO para ${actual[0].apellidos}, ${actual[0].nombres}.`
+            : `Horario normal (12:45 PM) restaurado para ${actual[0].apellidos}, ${actual[0].nombres}.`;
+
+        return res.status(200).json({
+            mensaje: msg,
+            dni: dni.trim(),
+            hora_limite_puntual: nuevaHoraLimite
+        });
+    } catch (error) {
+        console.error('❌ Error cambiando permiso 1pm:', error);
+        return res.status(500).json({ error: 'Error al actualizar el permiso de horario del estudiante.' });
     }
 };
 
@@ -680,6 +738,7 @@ module.exports = {
     listarEstudiantes,
     actualizarTelefonoApoderado,
     crearEstudiante,
+    cambiarPermisoEstudiante,
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
     importarExcelWeb,

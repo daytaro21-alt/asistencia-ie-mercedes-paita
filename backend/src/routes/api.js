@@ -9,6 +9,7 @@ const {
     listarEstudiantes,
     actualizarTelefonoApoderado,
     crearEstudiante,
+    cambiarPermisoEstudiante,
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
     importarExcelWeb
@@ -58,9 +59,10 @@ router.post('/chat', verificarToken, async (req, res) => {
 // Cierre manual de portón (marca Falta a los que no asistieron y envía WhatsApp)
 router.post('/asistencia/cerrar-porton', verificarToken, verificarRol(['TOECE', 'Administracion']), cerrarPortonManual);
 
-// Directorio de estudiantes de 5to y actualización de celular de apoderados
+// Directorio de estudiantes de 5to y actualización de celular de apoderados y permiso 1:00 PM
 router.get('/estudiantes', verificarToken, verificarRol(['TOECE', 'Administracion']), listarEstudiantes);
 router.put('/estudiantes/:dni/telefono', verificarToken, verificarRol(['TOECE', 'Administracion']), actualizarTelefonoApoderado);
+router.put('/estudiantes/:dni/permiso', verificarToken, verificarRol(['TOECE', 'Administracion']), cambiarPermisoEstudiante);
 
 // Estado de conexión de WhatsApp y QR para vincular desde la web
 router.get('/whatsapp/estado', verificarToken, verificarRol(['TOECE', 'Administracion']), (req, res) => {

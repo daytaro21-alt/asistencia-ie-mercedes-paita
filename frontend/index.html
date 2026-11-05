@@ -378,6 +378,11 @@
                             <button onclick="cargarResumenDashboard()" class="p-1.5 rounded-lg bg-mercedes-50 hover:bg-mercedes-100 text-mercedes-700 border border-mercedes-200" title="Actualizar">
                                 <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                             </button>
+                            <button type="button" onclick="imprimirReporteAsistenciaDia()"
+                                class="flex items-center gap-1.5 bg-dorado-400 hover:bg-dorado-300 text-mercedes-900 font-extrabold text-xs px-3 py-1.5 rounded-lg shadow-sm border border-dorado-500 transition">
+                                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                Imprimir Asistencia del Día
+                            </button>
                         </div>
                     </div>
 
@@ -607,9 +612,15 @@
                                     <input type="text" id="nuevoTelefono" maxlength="11" placeholder="9XXXXXXXX"
                                         class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-slate-900 focus:border-mercedes-600 focus:outline-none">
                                 </div>
-                                <div class="flex items-end">
+                                <div class="flex items-center pt-3">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer select-none bg-amber-50 border border-dorado-400 rounded-lg px-2.5 py-1.5 w-full">
+                                        <input type="checkbox" id="nuevoPermiso1pm" class="rounded text-mercedes-600 focus:ring-mercedes-500">
+                                        <span class="text-[11px] font-bold text-mercedes-900">🕐 Permiso Trabajo (Ingreso 1:00 PM)</span>
+                                    </label>
+                                </div>
+                                <div class="sm:col-span-2">
                                     <button type="submit"
-                                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg shadow transition">
+                                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg shadow transition">
                                         ➕ Registrar Estudiante
                                     </button>
                                 </div>
@@ -660,12 +671,13 @@
                                         <th class="py-2.5 px-3 font-bold">DNI</th>
                                         <th class="py-2.5 px-3 font-bold">Apellidos y Nombres</th>
                                         <th class="py-2.5 px-3 font-bold">Estado Matrícula</th>
+                                        <th class="py-2.5 px-3 font-bold">Permiso Horario (Trabajo)</th>
                                         <th class="py-2.5 px-3 font-bold">Cambiar / Trasladar Sección</th>
                                         <th class="py-2.5 px-3 font-bold text-right">Dar de Baja / Reactivar</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tablaAdminEstudiantes" class="divide-y divide-slate-200">
-                                    <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando listado administrativo...</td></tr>
+                                    <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando listado administrativo...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -921,7 +933,8 @@
                         ? 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-emerald-600 text-white mb-2 shadow-sm'
                         : 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 mb-2 shadow-sm';
 
-                    badge.innerText = `${data.estado.toUpperCase()} • ${data.hora}`;
+                    const textoPermiso = data.hora_limite_puntual ? ' (Permiso 1:00 PM)' : '';
+                    badge.innerText = `${data.estado.toUpperCase()}${textoPermiso} • ${data.hora}`;
                     nombre.innerText = data.alumno;
                     detalle.innerText = `DNI: ${data.dni} • 5to Secundaria - Sección "${data.seccion}"`;
 
@@ -1165,11 +1178,15 @@
                 else if (r.estado === 'Tardanza') badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
                 else if (r.estado === 'Falta') badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
 
+                const badgePermiso = r.hora_limite_puntual
+                    ? '<span class="ml-1.5 inline-block px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 text-[9.5px] font-extrabold">🕐 Permiso 1:00 PM</span>'
+                    : '';
+
                 return `
                     <tr class="hover:bg-amber-50/40">
                         <td class="py-2.5 px-3 font-mono font-semibold text-slate-700">${r.hora_ingreso || '--:--:--'}</td>
                         <td class="py-2.5 px-3 font-mono text-slate-500">${r.dni}</td>
-                        <td class="py-2.5 px-3 font-bold text-slate-900">${r.apellidos}, ${r.nombres}</td>
+                        <td class="py-2.5 px-3 font-bold text-slate-900">${r.apellidos}, ${r.nombres}${badgePermiso}</td>
                         <td class="py-2.5 px-3 font-bold text-mercedes-700">5to "${r.seccion}"</td>
                         <td class="py-2.5 px-3">
                             <span class="px-2 py-0.5 rounded border text-[10px] font-extrabold uppercase ${badgeColor}">
@@ -1332,7 +1349,7 @@
 
                 const tbody = document.getElementById('tablaAdminEstudiantes');
                 if (!data.estudiantes || data.estudiantes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400">No se encontraron estudiantes con esos filtros.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No se encontraron estudiantes con esos filtros.</td></tr>';
                     return;
                 }
 
@@ -1340,9 +1357,21 @@
 
                 tbody.innerHTML = data.estudiantes.map(est => {
                     const esActivo = est.estado_matricula === 'DEFINITIVA';
+                    const tienePermiso1pm = Boolean(est.hora_limite_puntual);
+
                     const badgeEstado = esActivo
                         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">ACTIVO (DEFINITIVA)</span>'
                         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">BAJA (${est.estado_matricula})</span>`;
+
+                    const botonPermiso1pm = tienePermiso1pm
+                        ? `<button onclick="cambiarPermisoEstudianteUI('${est.dni}', false)"
+                               class="bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-400 px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition flex items-center gap-1" title="Haz clic para volver al horario normal (12:45 PM)">
+                               🕐 Permiso 1:00 PM (Activo)
+                           </button>`
+                        : `<button onclick="cambiarPermisoEstudianteUI('${est.dni}', true)"
+                               class="bg-slate-100 hover:bg-sky-50 text-slate-600 hover:text-sky-800 border border-slate-300 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition" title="Dar permiso de ingreso hasta la 1:00 PM sin tardanza">
+                               Normal (12:45) • + Dar Permiso 1PM
+                           </button>`;
 
                     const opcionesSeccion = secciones.map(sec =>
                         `<option value="${sec}" ${est.seccion === sec ? 'selected' : ''}>5to Sección "${sec}"</option>`
@@ -1363,6 +1392,7 @@
                             <td class="py-2.5 px-3 font-mono font-semibold">${est.dni}</td>
                             <td class="py-2.5 px-3 font-bold ${esActivo ? 'text-slate-900' : 'line-through text-slate-500'}">${est.apellidos}, ${est.nombres}</td>
                             <td class="py-2.5 px-3">${badgeEstado}</td>
+                            <td class="py-2.5 px-3">${botonPermiso1pm}</td>
                             <td class="py-2.5 px-3">
                                 <select onchange="cambiarSeccionEstudianteUI('${est.dni}', this.value)"
                                     class="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-mercedes-800 focus:border-mercedes-600 focus:outline-none">
@@ -1387,6 +1417,7 @@
             const apellidos = document.getElementById('nuevosApellidos').value.trim();
             const nombres = document.getElementById('nuevosNombres').value.trim();
             const telefono_apoderado = document.getElementById('nuevoTelefono').value.trim();
+            const permiso_1pm = document.getElementById('nuevoPermiso1pm').checked;
 
             try {
                 const res = await fetch(`${API_BASE}/estudiantes`, {
@@ -1395,7 +1426,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${tokenJWT}`
                     },
-                    body: JSON.stringify({ dni, seccion, apellidos, nombres, grado: 'QUINTO', telefono_apoderado })
+                    body: JSON.stringify({ dni, seccion, apellidos, nombres, grado: 'QUINTO', telefono_apoderado, permiso_1pm })
                 });
                 const data = await res.json();
                 if (!res.ok) {
@@ -1407,11 +1438,162 @@
                 document.getElementById('nuevosApellidos').value = '';
                 document.getElementById('nuevosNombres').value = '';
                 document.getElementById('nuevoTelefono').value = '';
+                document.getElementById('nuevoPermiso1pm').checked = false;
                 cargarTablaAdministracion();
                 cargarResumenDashboard();
             } catch (err) {
                 alert('Error de conexión al registrar estudiante.');
             }
+        }
+
+        async function cambiarPermisoEstudianteUI(dni, permiso_1pm) {
+            try {
+                const res = await fetch(`${API_BASE}/estudiantes/${dni}/permiso`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({ permiso_1pm })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Error al cambiar el permiso de horario.');
+                    return;
+                }
+                cargarTablaAdministracion();
+                cargarResumenDashboard();
+            } catch (err) {
+                alert('Error de red al cambiar el permiso.');
+            }
+        }
+
+        function imprimirReporteAsistenciaDia() {
+            const fecha = document.getElementById('filtroFecha').value || '';
+            const seccion = document.getElementById('filtroSeccion').value || 'TODAS (A - H)';
+            const busqueda = (document.getElementById('busquedaAsistenciaDia')?.value || '').trim().toLowerCase();
+
+            const nombresEstado = {
+                'TODOS_PADRON': 'PADRÓN COMPLETO DEL DÍA',
+                'ASISTIERON': 'ESTUDIANTES QUE ASISTIERON (PUNTUALES Y TARDANZAS)',
+                'Puntual': 'ESTUDIANTES PUNTUALES',
+                'Tardanza': 'ESTUDIANTES CON TARDANZA',
+                'Falta': 'ESTUDIANTES CON FALTA (INASISTENCIA)',
+                'Sin Registro': 'ESTUDIANTES SIN REGISTRO DE INGRESO'
+            };
+            const tituloFiltro = nombresEstado[filtroEstadoActual] || filtroEstadoActual;
+
+            const filtrados = padronDiaCache.filter(r => {
+                if (filtroEstadoActual === 'ASISTIERON') {
+                    if (r.estado !== 'Puntual' && r.estado !== 'Tardanza') return false;
+                } else if (filtroEstadoActual !== 'TODOS_PADRON') {
+                    if (r.estado !== filtroEstadoActual) return false;
+                }
+                if (busqueda) {
+                    const matchDni = String(r.dni || '').includes(busqueda);
+                    const matchNom = `${r.apellidos} ${r.nombres}`.toLowerCase().includes(busqueda);
+                    if (!matchDni && !matchNom) return false;
+                }
+                return true;
+            });
+
+            const total = document.getElementById('kpiTotal').innerText;
+            const puntuales = document.getElementById('kpiPuntuales').innerText;
+            const tardanzas = document.getElementById('kpiTardanzas').innerText;
+            const faltas = document.getElementById('kpiFaltas').innerText;
+            const pendientes = document.getElementById('kpiPendientes').innerText;
+
+            const filasHTML = filtrados.map((r, i) => `
+                <tr>
+                    <td style="text-align:center;">${i + 1}</td>
+                    <td style="font-family:monospace;text-align:center;">${r.dni}</td>
+                    <td><strong>${r.apellidos}, ${r.nombres}</strong> ${r.hora_limite_puntual ? '<span style="font-size:10px;color:#0369a1;font-weight:bold;">(Permiso 1:00 PM)</span>' : ''}</td>
+                    <td style="text-align:center;font-weight:bold;">5to "${r.seccion}"</td>
+                    <td style="font-family:monospace;text-align:center;">${r.hora_ingreso || '--:--:--'}</td>
+                    <td style="text-align:center;font-weight:bold;">${r.estado.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const ventana = window.open('', '_blank', 'width=900,height=700');
+            ventana.document.write(`
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Reporte de Asistencia - ${fecha}</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 12mm; }
+                        body { font-family: Arial, sans-serif; color: #1e293b; font-size: 11px; margin: 0; }
+                        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #9e0b22; padding-bottom: 10px; margin-bottom: 12px; }
+                        .header-left { display: flex; align-items: center; gap: 12px; }
+                        .header img { width: 48px; height: 56px; object-fit: contain; }
+                        .header h1 { margin: 0; font-size: 15px; color: #7f091c; text-transform: uppercase; }
+                        .header p { margin: 2px 0 0; font-size: 10px; color: #475569; font-weight: bold; }
+                        .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
+                        .kpi { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; text-align: center; background: #f8fafc; }
+                        .kpi span { display: block; font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+                        .kpi strong { font-size: 14px; color: #0f172a; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+                        th { background: #7f091c; color: #ffffff; padding: 6px; font-size: 10px; text-transform: uppercase; border: 1px solid #7f091c; }
+                        td { padding: 5px 6px; border: 1px solid #cbd5e1; font-size: 10.5px; }
+                        tr:nth-child(even) { background: #f8fafc; }
+                        .firmas { margin-top: 40px; display: flex; justify-content: space-around; text-align: center; }
+                        .firma-linea { width: 220px; border-top: 1px solid #334155; padding-top: 5px; font-size: 10px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="header-left">
+                            <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia">
+                            <div>
+                                <p style="color:#ca8a04;">PAITA - SABER, PROGRESO Y FELICIDAD</p>
+                                <h1>I.E. Nuestra Señora de las Mercedes</h1>
+                                <p>REPORTE OFICIAL DE ASISTENCIA DIARIA — 5TO DE SECUNDARIA (TURNO TARDE)</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right;font-size:10px;">
+                            <p><strong>FECHA:</strong> ${fecha}</p>
+                            <p><strong>SECCIÓN:</strong> ${seccion === '' ? 'TODAS (A - H)' : '5to "' + seccion + '"'}</p>
+                            <p><strong>FILTRO:</strong> ${tituloFiltro}</p>
+                        </div>
+                    </div>
+
+                    <div class="kpis">
+                        <div class="kpi"><span>Padrón Activo</span><strong>${total}</strong></div>
+                        <div class="kpi"><span>Puntuales</span><strong>${puntuales}</strong></div>
+                        <div class="kpi"><span>Tardanzas</span><strong>${tardanzas}</strong></div>
+                        <div class="kpi"><span>Faltas</span><strong>${faltas}</strong></div>
+                        <div class="kpi"><span>Sin Registro</span><strong>${pendientes}</strong></div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:32px;">N°</th>
+                                <th style="width:75px;">DNI</th>
+                                <th>Apellidos y Nombres</th>
+                                <th style="width:65px;">Sección</th>
+                                <th style="width:75px;">Hora</th>
+                                <th style="width:85px;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filasHTML || '<tr><td colspan="6" style="text-align:center;padding:15px;">Sin registros para mostrar</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div class="firmas">
+                        <div class="firma-linea">Firma del Auxiliar / Responsable</div>
+                        <div class="firma-linea">V°B° Coordinación TOECE / Administración</div>
+                    </div>
+
+                    <script>
+                        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            ventana.document.close();
         }
 
         async function cambiarSeccionEstudianteUI(dni, nuevaSeccion) {
