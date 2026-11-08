@@ -381,7 +381,12 @@
                             <button type="button" onclick="imprimirReporteAsistenciaDia()"
                                 class="flex items-center gap-1.5 bg-dorado-400 hover:bg-dorado-300 text-mercedes-900 font-extrabold text-xs px-3 py-1.5 rounded-lg shadow-sm border border-dorado-500 transition">
                                 <i data-lucide="printer" class="w-3.5 h-3.5"></i>
-                                Imprimir Asistencia del Día
+                                Imprimir PDF del Día
+                            </button>
+                            <button type="button" onclick="abrirModalDescargaExcelConsolidado()"
+                                class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-lg shadow-sm transition">
+                                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                                Descargar Excel (Mes / Semana)
                             </button>
                         </div>
                     </div>
@@ -1943,6 +1948,187 @@
                 `;
             }
         }
+
+        // =====================================================
+        // LÓGICA 6: EXPORTACIÓN DE ASISTENCIA CONSOLIDADA (EXCEL)
+        // =====================================================
+        function abrirModalDescargaExcelConsolidado() {
+            const secActual = document.getElementById('filtroSeccion').value;
+            const selectSec = document.getElementById('modalExcelSeccion');
+            if (selectSec) selectSec.value = secActual;
+
+            const hoy = new Date();
+            const yyyy = hoy.getFullYear();
+            const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+            const inputMes = document.getElementById('modalExcelMes');
+            if (inputMes && !inputMes.value) inputMes.value = `${yyyy}-${mm}`;
+
+            const modal = document.getElementById('modalExportarExcel');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function cerrarModalDescargaExcelConsolidado() {
+            const modal = document.getElementById('modalExportarExcel');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function alternarTipoRangoExcel() {
+            const tipo = document.querySelector('input[name="tipoRangoExcel"]:checked')?.value || 'mes';
+            const contMes = document.getElementById('contenedorExcelMes');
+            const contRango = document.getElementById('contenedorExcelFechasLibres');
+            if (tipo === 'mes') {
+                contMes.classList.remove('hidden');
+                contRango.classList.add('hidden');
+            } else {
+                contMes.classList.add('hidden');
+                contRango.classList.remove('hidden');
+            }
+        }
+
+        async function descargarExcelConsolidado() {
+            if (!tokenJWT) return;
+            const seccion = document.getElementById('modalExcelSeccion').value;
+            const tipo = document.querySelector('input[name="tipoRangoExcel"]:checked')?.value || 'mes';
+
+            let query = `seccion=${encodeURIComponent(seccion)}`;
+            if (tipo === 'mes') {
+                const mes = document.getElementById('modalExcelMes').value;
+                if (!mes) {
+                    alert('Selecciona el mes que deseas descargar.');
+                    return;
+                }
+                query += `&mes=${encodeURIComponent(mes)}`;
+            } else {
+                const fInicio = document.getElementById('modalExcelFechaInicio').value;
+                const fFin = document.getElementById('modalExcelFechaFin').value;
+                if (!fInicio || !fFin) {
+                    alert('Debes indicar fecha de inicio y fin para la semana o rango.');
+                    return;
+                }
+                if (fInicio > fFin) {
+                    alert('La fecha de inicio no puede ser posterior a la fecha de fin.');
+                    return;
+                }
+                query += `&fecha_inicio=${fInicio}&fecha_fin=${fFin}`;
+            }
+
+            const btn = document.getElementById('btnDescargarExcelModal');
+            const textoOriginal = btn.innerHTML;
+            btn.innerHTML = '⏳ Generando Excel...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/asistencia/exportar-excel?${query}`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'Error al generar el archivo Excel.');
+                    return;
+                }
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const headerContent = res.headers.get('Content-Disposition') || '';
+                const matchNombre = headerContent.match(/filename="?([^"]+)"?/);
+                a.download = matchNombre ? matchNombre[1] : `Asistencia_5to_${seccion || 'Todas'}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                cerrarModalDescargaExcelConsolidado();
+            } catch (e) {
+                alert('Error de red al descargar el consolidado Excel.');
+            } finally {
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            }
+        }
     </script>
+
+    <!-- MODAL PARA DESCARGA DE EXCEL CONSOLIDADO (SEMANAL / MENSUAL) -->
+    <div id="modalExportarExcel" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-t-4 border-t-emerald-600 border-x border-b border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Descargar Asistencia en Excel</h3>
+                        <p class="text-[11px] text-slate-500">Sábana de asistencia mensual o semanal por sección</p>
+                    </div>
+                </div>
+                <button type="button" onclick="cerrarModalDescargaExcelConsolidado()" class="text-slate-400 hover:text-slate-700 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="py-4 space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Sección de 5to de Secundaria:</label>
+                    <select id="modalExcelSeccion" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:border-emerald-600 focus:outline-none">
+                        <option value="">Todas las Secciones (5to A hasta 5to H)</option>
+                        <option value="A">5to Sección "A"</option>
+                        <option value="B">5to Sección "B"</option>
+                        <option value="C">5to Sección "C"</option>
+                        <option value="D">5to Sección "D"</option>
+                        <option value="E">5to Sección "E"</option>
+                        <option value="F">5to Sección "F"</option>
+                        <option value="G">5to Sección "G"</option>
+                        <option value="H">5to Sección "H"</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1.5">Periodo del consolidado:</label>
+                    <div class="flex items-center gap-4 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <label class="flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer">
+                            <input type="radio" name="tipoRangoExcel" value="mes" checked onchange="alternarTipoRangoExcel()" class="accent-emerald-600">
+                            Mensual
+                        </label>
+                        <label class="flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer">
+                            <input type="radio" name="tipoRangoExcel" value="rango" onchange="alternarTipoRangoExcel()" class="accent-emerald-600">
+                            Semanal / Rango de Fechas
+                        </label>
+                    </div>
+                </div>
+
+                <div id="contenedorExcelMes">
+                    <label class="block font-bold text-slate-700 mb-1">Mes a exportar:</label>
+                    <input type="month" id="modalExcelMes" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:border-emerald-600 focus:outline-none">
+                </div>
+
+                <div id="contenedorExcelFechasLibres" class="hidden grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Desde (Inicio semana):</label>
+                        <input type="date" id="modalExcelFechaInicio" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:border-emerald-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Hasta (Fin semana):</label>
+                        <input type="date" id="modalExcelFechaFin" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:border-emerald-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-dorado-300 rounded-xl p-3 text-[11px] text-amber-900 leading-relaxed">
+                    💡 <strong>Estructura del archivo Excel generado:</strong><br>
+                    • Orden alfabético estricto según nómina oficial de SIAGIE.<br>
+                    • Sábana día por día: <strong>P</strong> (Puntual), <strong>T</strong> (Tardanza), <strong>F</strong> (Falta) y <strong>-</strong> (Sin registro).<br>
+                    • Totales calculados automáticamente con porcentaje (%) de asistencia mensual.
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="cerrarModalDescargaExcelConsolidado()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
+                    Cancelar
+                </button>
+                <button type="button" id="btnDescargarExcelModal" onclick="descargarExcelConsolidado()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Descargar Archivo .xlsx
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

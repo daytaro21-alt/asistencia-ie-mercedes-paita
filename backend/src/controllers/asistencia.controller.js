@@ -707,6 +707,170 @@ const importarExcelWeb = async (req, res) => {
 };
 
 // Scheduler ligero en memoria que revisa cada minuto si son las 13:30 en Perú (Lunes a Viernes)
+/**
+ * GET /api/asistencia/exportar-excel?seccion=A&fecha_inicio=YYYY-MM-DD&fecha_fin=YYYY-MM-DD
+ * Permite a Auxiliares, TOECE y Administración descargar el consolidado semanal o mensual en formato Excel (.xlsx)
+ * con sábana de días (P = Puntual, T = Tardanza, F = Falta, - = Sin Registro) y totales por estudiante en orden alfabético.
+ */
+const exportarReporteConsolidadoExcel = async (req, res) => {
+    try {
+        const { seccion, fecha_inicio, fecha_fin, mes } = req.query;
+        let fInicio = fecha_inicio;
+        let fFin = fecha_fin;
+
+        // Si pasan mes en formato YYYY-MM (ej. 2026-11)
+        if (mes && /^\d{4}-\d{2}$/.test(mes)) {
+            const [anio, m] = mes.split('-').map(Number);
+            const ultDia = new Date(anio, m, 0).getDate();
+            fInicio = `${mes}-01`;
+            fFin = `${mes}-${String(ultDia).padStart(2, '0')}`;
+        }
+
+        if (!fInicio || !fFin) {
+            const hoy = new Date();
+            const anio = hoy.getFullYear();
+            const m = String(hoy.getMonth() + 1).padStart(2, '0');
+            const ultDia = new Date(anio, hoy.getMonth() + 1, 0).getDate();
+            fInicio = `${anio}-${m}-01`;
+            fFin = `${anio}-${m}-${String(ultDia).padStart(2, '0')}`;
+        }
+
+        const seccionFiltro = seccion ? seccion.trim().toUpperCase() : null;
+
+        // 1. Obtener lista de estudiantes activos ordenados alfabéticamente
+        let sqlEst = `
+            SELECT id_estudiante, dni, apellidos, nombres, seccion, hora_limite_puntual
+            FROM Estudiante
+            WHERE COALESCE(estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
+        `;
+        const paramsEst = [];
+        if (seccionFiltro) {
+            sqlEst += ' AND seccion = ?';
+            paramsEst.push(seccionFiltro);
+        }
+        sqlEst += ' ORDER BY seccion ASC, apellidos ASC, nombres ASC';
+        const [estudiantes] = await pool.query(sqlEst, paramsEst);
+
+        if (estudiantes.length === 0) {
+            return res.status(404).json({ error: 'No se encontraron estudiantes para la sección seleccionada.' });
+        }
+
+        // 2. Obtener todas las asistencias del rango de fechas
+        let sqlAsis = `
+            SELECT a.estudiante_id, a.fecha, a.estado, a.hora_ingreso
+            FROM Asistencia a
+            INNER JOIN Estudiante e ON a.estudiante_id = e.id_estudiante
+            WHERE a.fecha BETWEEN ? AND ?
+              AND COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
+        `;
+        const paramsAsis = [fInicio, fFin];
+        if (seccionFiltro) {
+            sqlAsis += ' AND e.seccion = ?';
+            paramsAsis.push(seccionFiltro);
+        }
+        const [asistencias] = await pool.query(sqlAsis, paramsAsis);
+
+        // Mapa de asistencia: [id_estudiante][fecha] = estado
+        const mapaAsis = new Map();
+        for (const a of asistencias) {
+            const fStr = typeof a.fecha === 'string' ? a.fecha : new Intl.DateTimeFormat('sv-SE').format(new Date(a.fecha));
+            if (!mapaAsis.has(a.estudiante_id)) {
+                mapaAsis.set(a.estudiante_id, new Map());
+            }
+            mapaAsis.get(a.estudiante_id).set(fStr, a.estado);
+        }
+
+        // 3. Generar lista de fechas (solo días hábiles de lunes a viernes o días con registro)
+        const dInicio = new Date(`${fInicio}T00:00:00`);
+        const dFin = new Date(`${fFin}T00:00:00`);
+        const fechasRango = [];
+        const cur = new Date(dInicio);
+        while (cur <= dFin) {
+            const diaSemana = cur.getDay(); // 0: Dom, 6: Sab
+            if (diaSemana !== 0 && diaSemana !== 6) {
+                const fStr = cur.toISOString().split('T')[0];
+                fechasRango.push(fStr);
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        // 4. Construir filas para la hoja Excel
+        const filasExcel = [];
+
+        // Encabezados
+        const headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Sec.'];
+        fechasRango.forEach(f => {
+            const [, m, d] = f.split('-');
+            headers.push(`${d}/${m}`);
+        });
+        headers.push('TOTAL PUNTUAL', 'TOTAL TARDANZA', 'TOTAL FALTA', '% ASISTENCIA');
+        filasExcel.push(headers);
+
+        // Filas por alumno
+        estudiantes.forEach((est, idx) => {
+            const mapaEst = mapaAsis.get(est.id_estudiante) || new Map();
+            let cPuntual = 0;
+            let cTardanza = 0;
+            let cFalta = 0;
+
+            const fila = [
+                idx + 1,
+                est.dni,
+                `${est.apellidos}, ${est.nombres}`,
+                est.seccion
+            ];
+
+            fechasRango.forEach(f => {
+                const st = mapaEst.get(f);
+                if (st === 'Puntual') {
+                    fila.push('P');
+                    cPuntual++;
+                } else if (st === 'Tardanza') {
+                    fila.push('T');
+                    cTardanza++;
+                } else if (st === 'Falta') {
+                    fila.push('F');
+                    cFalta++;
+                } else {
+                    fila.push('-');
+                }
+            });
+
+            const asistieron = cPuntual + cTardanza;
+            const totalDiasValidados = cPuntual + cTardanza + cFalta;
+            const pct = totalDiasValidados > 0 ? `${Math.round((asistieron / totalDiasValidados) * 100)}%` : '0%';
+
+            fila.push(cPuntual, cTardanza, cFalta, pct);
+            filasExcel.push(fila);
+        });
+
+        // 5. Crear libro de trabajo con xlsx
+        const xlsx = require('xlsx');
+        const wb = xlsx.utils.book_new();
+        const ws = xlsx.utils.aoa_to_sheet(filasExcel);
+
+        // Ajustar anchos de columnas
+        const colWidths = [{ wch: 4 }, { wch: 10 }, { wch: 34 }, { wch: 6 }];
+        fechasRango.forEach(() => colWidths.push({ wch: 6 }));
+        colWidths.push({ wch: 14 }, { wch: 15 }, { wch: 13 }, { wch: 14 });
+        ws['!cols'] = colWidths;
+
+        const nombreHoja = seccionFiltro ? `5to_${seccionFiltro}` : 'Consolidado_5to';
+        xlsx.utils.book_append_sheet(wb, ws, nombreHoja);
+
+        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        const nombreArchivo = `Asistencia_5to_${seccionFiltro || 'Todas'}_${fInicio}_al_${fFin}.xlsx`;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+        return res.send(buffer);
+
+    } catch (error) {
+        console.error('❌ Error al exportar consolidado Excel:', error);
+        return res.status(500).json({ error: 'Error al exportar consolidado de asistencia.' });
+    }
+};
+
 let ultimaFechaCierreAuto = null;
 const iniciarProgramadorCierrePorton = () => {
     const horaCierreConfig = (process.env.HORA_CIERRE_PORTON || '13:30:00').slice(0, 5); // '13:30'
@@ -741,5 +905,6 @@ module.exports = {
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
     importarExcelWeb,
+    exportarReporteConsolidadoExcel,
     iniciarProgramadorCierrePorton
 };

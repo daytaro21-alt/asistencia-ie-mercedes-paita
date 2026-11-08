@@ -87,6 +87,11 @@ pm2 save
 sudo env PATH="$PATH" "$(which pm2)" startup systemd -u "$(whoami)" --hp "$HOME" > /dev/null
 pm2 save
 
+# Configurar Backup Automático todos los domingos a las 23:00 hrs
+chmod +x "$DIR_PROYECTO/deploy/backup-semanal.sh"
+( crontab -l 2>/dev/null | grep -v "backup-semanal.sh" ; echo "0 23 * * 0 bash $DIR_PROYECTO/deploy/backup-semanal.sh >> $HOME/backups_mercedes/backup.log 2>&1" ) | crontab -
+echo "✅ Cron de backup semanal configurado (Domingos 11:00 PM)."
+
 sleep 8
 URL_HTTPS=$(pm2 logs tunel-https --lines 50 --nostream 2>/dev/null | grep -Eo 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' | tail -n 1)
 IP_PUBLICA=$(curl -s --max-time 3 http://checkip.amazonaws.com || echo "<IP_PUBLICA>")

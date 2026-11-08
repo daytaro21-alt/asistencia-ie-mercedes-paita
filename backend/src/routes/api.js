@@ -12,7 +12,8 @@ const {
     cambiarPermisoEstudiante,
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
-    importarExcelWeb
+    importarExcelWeb,
+    exportarReporteConsolidadoExcel
 } = require('../controllers/asistencia.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
@@ -32,6 +33,9 @@ router.post('/registrar-asistencia', registrarAsistenciaQR);
 // ==========================================
 // Resumen estadístico y consulta de quiénes faltaron, no faltaron y llegaron tarde
 router.get('/asistencia/resumen', verificarToken, obtenerResumenDashboard);
+
+// Exportar consolidado semanal / mensual a Excel (.xlsx) con sábana de días y orden alfabético
+router.get('/asistencia/exportar-excel', verificarToken, exportarReporteConsolidadoExcel);
 
 // Agente Analítico de IA (Gemini 2.5 Flash + Function Calling)
 router.post('/chat', verificarToken, async (req, res) => {
