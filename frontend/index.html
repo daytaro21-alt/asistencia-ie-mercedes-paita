@@ -1592,11 +1592,11 @@
 
         function imprimirReporteAsistenciaDia() {
             const fecha = document.getElementById('filtroFecha').value || '';
-            const seccion = document.getElementById('filtroSeccion').value || 'TODAS (A - H)';
+            const seccionFiltroSelect = document.getElementById('filtroSeccion').value || '';
             const busqueda = (document.getElementById('busquedaAsistenciaDia')?.value || '').trim().toLowerCase();
 
             const nombresEstado = {
-                'TODOS_PADRON': 'PADRÓN COMPLETO DEL DÍA',
+                'TODOS_PADRON': 'PADRÓN OFICIAL DEL DÍA',
                 'ASISTIERON': 'ESTUDIANTES QUE ASISTIERON (PUNTUALES Y TARDANZAS)',
                 'Puntual': 'ESTUDIANTES PUNTUALES',
                 'Tardanza': 'ESTUDIANTES CON TARDANZA',
@@ -1605,7 +1605,8 @@
             };
             const tituloFiltro = nombresEstado[filtroEstadoActual] || filtroEstadoActual;
 
-            const filtrados = padronDiaCache.filter(r => {
+            // Filtrar registros según estado y búsqueda
+            const registrosFiltrados = padronDiaCache.filter(r => {
                 if (filtroEstadoActual === 'ASISTIERON') {
                     if (r.estado !== 'Puntual' && r.estado !== 'Tardanza') return false;
                 } else if (filtroEstadoActual !== 'TODOS_PADRON') {
@@ -1619,98 +1620,128 @@
                 return true;
             });
 
-            const total = document.getElementById('kpiTotal').innerText;
-            const puntuales = document.getElementById('kpiPuntuales').innerText;
-            const tardanzas = document.getElementById('kpiTardanzas').innerText;
-            const faltas = document.getElementById('kpiFaltas').innerText;
-            const pendientes = document.getElementById('kpiPendientes').innerText;
+            // Agrupar estrictamente por sección de 5to de Secundaria (A hasta H)
+            const seccionesUnicas = Array.from(new Set(registrosFiltrados.map(r => r.seccion))).sort();
 
-            const filasHTML = filtrados.map((r, i) => `
-                <tr>
-                    <td style="text-align:center;">${i + 1}</td>
-                    <td style="font-family:monospace;text-align:center;">${r.dni}</td>
-                    <td><strong>${r.apellidos}, ${r.nombres}</strong> ${r.hora_limite_puntual ? '<span style="font-size:10px;color:#0369a1;font-weight:bold;">(Permiso 1:00 PM)</span>' : ''}</td>
-                    <td style="text-align:center;font-weight:bold;">5to "${r.seccion}"</td>
-                    <td style="font-family:monospace;text-align:center;">${r.hora_ingreso || '--:--:--'}</td>
-                    <td style="text-align:center;font-weight:bold;">${r.estado.toUpperCase()}</td>
-                </tr>
-            `).join('');
+            if (seccionesUnicas.length === 0) {
+                alert('No hay estudiantes para imprimir con los filtros seleccionados.');
+                return;
+            }
 
-            const ventana = window.open('', '_blank', 'width=900,height=700');
+            // Generar bloques HTML independientes por sección con salto de página obligatorio para impresión A4
+            const contenidoSeccionesHTML = seccionesUnicas.map((sec, idx) => {
+                // Orden alfabético estricto de la A a la Z
+                const alumnosSec = registrosFiltrados
+                    .filter(r => r.seccion === sec)
+                    .sort((a, b) => `${a.apellidos} ${a.nombres}`.localeCompare(`${b.apellidos} ${b.nombres}`));
+
+                const totSec = alumnosSec.length;
+                const puntSec = alumnosSec.filter(a => a.estado === 'Puntual').length;
+                const tardSec = alumnosSec.filter(a => a.estado === 'Tardanza').length;
+                const faltSec = alumnosSec.filter(a => a.estado === 'Falta').length;
+                const sinRegSec = alumnosSec.filter(a => a.estado === 'Sin Registro').length;
+
+                const filasSecHTML = alumnosSec.map((r, i) => {
+                    const colorEstado = r.estado === 'Puntual' ? '#047857' : (r.estado === 'Tardanza' ? '#b45309' : (r.estado === 'Falta' ? '#b91c1c' : '#475569'));
+                    return `
+                        <tr>
+                            <td style="text-align:center;font-weight:bold;">${i + 1}</td>
+                            <td style="font-family:monospace;text-align:center;">${r.dni}</td>
+                            <td><strong>${r.apellidos}, ${r.nombres}</strong> ${r.hora_limite_puntual ? '<span style="font-size:9px;color:#0369a1;font-weight:bold;">(Permiso 1:00 PM)</span>' : ''}</td>
+                            <td style="text-align:center;font-weight:bold;color:#7f091c;">5to "${r.seccion}"</td>
+                            <td style="font-family:monospace;text-align:center;">${r.hora_ingreso || '--:--:--'}</td>
+                            <td style="text-align:center;font-weight:bold;color:${colorEstado};">${r.estado.toUpperCase()}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const clasePageBreak = (idx < seccionesUnicas.length - 1) ? 'page-break' : '';
+
+                return `
+                    <div class="seccion-reporte ${clasePageBreak}">
+                        <div class="header">
+                            <div class="header-left">
+                                <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia">
+                                <div>
+                                    <p style="color:#ca8a04;font-size:9px;">PAITA - SABER, PROGRESO Y FELICIDAD</p>
+                                    <h1>I.E. Nuestra Señora de las Mercedes</h1>
+                                    <p>REPORTE DE ASISTENCIA — 5TO DE SECUNDARIA SECCIÓN "${sec}" (TURNO TARDE)</p>
+                                </div>
+                            </div>
+                            <div style="text-align:right;font-size:10px;">
+                                <p><strong>FECHA:</strong> ${fecha}</p>
+                                <p><strong>GRADO Y SECCIÓN:</strong> <span style="color:#7f091c;font-size:12px;font-weight:bold;">5to "${sec}"</span></p>
+                                <p><strong>FILTRO:</strong> ${tituloFiltro}</p>
+                            </div>
+                        </div>
+
+                        <div class="kpis">
+                            <div class="kpi"><span>Total Sección</span><strong>${totSec}</strong></div>
+                            <div class="kpi"><span>Puntuales</span><strong style="color:#047857;">${puntSec}</strong></div>
+                            <div class="kpi"><span>Tardanzas</span><strong style="color:#b45309;">${tardSec}</strong></div>
+                            <div class="kpi"><span>Faltas</span><strong style="color:#b91c1c;">${faltSec}</strong></div>
+                            <div class="kpi"><span>Sin Registro</span><strong style="color:#475569;">${sinRegSec}</strong></div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:32px;">N°</th>
+                                    <th style="width:75px;">DNI</th>
+                                    <th>Apellidos y Nombres (Orden Alfabético)</th>
+                                    <th style="width:60px;">Sección</th>
+                                    <th style="width:75px;">Ingreso</th>
+                                    <th style="width:85px;">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filasSecHTML || '<tr><td colspan="6" style="text-align:center;padding:15px;">Sin registros para mostrar</td></tr>'}
+                            </tbody>
+                        </table>
+
+                        <div class="firmas">
+                            <div class="firma-linea">Auxiliar a Cargo - 5to "${sec}"</div>
+                            <div class="firma-linea">V°B° Coordinación TOECE / Administración</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const ventana = window.open('', '_blank', 'width=950,height=750');
             ventana.document.write(`
                 <!DOCTYPE html>
                 <html lang="es">
                 <head>
                     <meta charset="UTF-8">
-                    <title>Reporte de Asistencia - ${fecha}</title>
+                    <title>Reporte Asistencia 5to - ${fecha}</title>
                     <style>
-                        @page { size: A4 portrait; margin: 12mm; }
-                        body { font-family: Arial, sans-serif; color: #1e293b; font-size: 11px; margin: 0; }
-                        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #9e0b22; padding-bottom: 10px; margin-bottom: 12px; }
-                        .header-left { display: flex; align-items: center; gap: 12px; }
-                        .header img { width: 48px; height: 56px; object-fit: contain; }
-                        .header h1 { margin: 0; font-size: 15px; color: #7f091c; text-transform: uppercase; }
-                        .header p { margin: 2px 0 0; font-size: 10px; color: #475569; font-weight: bold; }
-                        .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
-                        .kpi { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; text-align: center; background: #f8fafc; }
-                        .kpi span { display: block; font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-                        .kpi strong { font-size: 14px; color: #0f172a; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-                        th { background: #7f091c; color: #ffffff; padding: 6px; font-size: 10px; text-transform: uppercase; border: 1px solid #7f091c; }
-                        td { padding: 5px 6px; border: 1px solid #cbd5e1; font-size: 10.5px; }
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: Arial, sans-serif; color: #1e293b; font-size: 10.5px; margin: 0; }
+                        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #9e0b22; padding-bottom: 8px; margin-bottom: 10px; }
+                        .header-left { display: flex; align-items: center; gap: 10px; }
+                        .header img { width: 44px; height: 52px; object-fit: contain; }
+                        .header h1 { margin: 0; font-size: 14px; color: #7f091c; text-transform: uppercase; }
+                        .header p { margin: 1px 0 0; font-size: 9.5px; color: #475569; font-weight: bold; }
+                        .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
+                        .kpi { border: 1px solid #cbd5e1; border-radius: 5px; padding: 4px; text-align: center; background: #f8fafc; }
+                        .kpi span { display: block; font-size: 8.5px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+                        .kpi strong { font-size: 13px; color: #0f172a; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+                        th { background: #7f091c; color: #ffffff; padding: 5px; font-size: 9.5px; text-transform: uppercase; border: 1px solid #7f091c; }
+                        td { padding: 4.5px 6px; border: 1px solid #cbd5e1; font-size: 10px; }
                         tr:nth-child(even) { background: #f8fafc; }
-                        .firmas { margin-top: 40px; display: flex; justify-content: space-around; text-align: center; }
-                        .firma-linea { width: 220px; border-top: 1px solid #334155; padding-top: 5px; font-size: 10px; font-weight: bold; }
+                        .firmas { margin-top: 35px; display: flex; justify-content: space-around; text-align: center; }
+                        .firma-linea { width: 220px; border-top: 1px solid #334155; padding-top: 4px; font-size: 9.5px; font-weight: bold; }
+                        .page-break { page-break-after: always; break-after: page; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        }
                     </style>
                 </head>
                 <body>
-                    <div class="header">
-                        <div class="header-left">
-                            <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia">
-                            <div>
-                                <p style="color:#ca8a04;">PAITA - SABER, PROGRESO Y FELICIDAD</p>
-                                <h1>I.E. Nuestra Señora de las Mercedes</h1>
-                                <p>REPORTE OFICIAL DE ASISTENCIA DIARIA — 5TO DE SECUNDARIA (TURNO TARDE)</p>
-                            </div>
-                        </div>
-                        <div style="text-align:right;font-size:10px;">
-                            <p><strong>FECHA:</strong> ${fecha}</p>
-                            <p><strong>SECCIÓN:</strong> ${seccion === '' ? 'TODAS (A - H)' : '5to "' + seccion + '"'}</p>
-                            <p><strong>FILTRO:</strong> ${tituloFiltro}</p>
-                        </div>
-                    </div>
-
-                    <div class="kpis">
-                        <div class="kpi"><span>Padrón Activo</span><strong>${total}</strong></div>
-                        <div class="kpi"><span>Puntuales</span><strong>${puntuales}</strong></div>
-                        <div class="kpi"><span>Tardanzas</span><strong>${tardanzas}</strong></div>
-                        <div class="kpi"><span>Faltas</span><strong>${faltas}</strong></div>
-                        <div class="kpi"><span>Sin Registro</span><strong>${pendientes}</strong></div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width:32px;">N°</th>
-                                <th style="width:75px;">DNI</th>
-                                <th>Apellidos y Nombres</th>
-                                <th style="width:65px;">Sección</th>
-                                <th style="width:75px;">Hora</th>
-                                <th style="width:85px;">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filasHTML || '<tr><td colspan="6" style="text-align:center;padding:15px;">Sin registros para mostrar</td></tr>'}
-                        </tbody>
-                    </table>
-
-                    <div class="firmas">
-                        <div class="firma-linea">Firma del Auxiliar / Responsable</div>
-                        <div class="firma-linea">V°B° Coordinación TOECE / Administración</div>
-                    </div>
-
+                    ${contenidoSeccionesHTML}
                     <script>
-                        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+                        window.onload = function() { setTimeout(function() { window.print(); }, 350); };
                     <\/script>
                 </body>
                 </html>

@@ -40,18 +40,19 @@ async function inicializarBaseDeDatos() {
             console.log("✅ [DB Mig] Columna 'nombre_completo' añadida a la tabla usuario.");
         }
 
-        // 3. Crear / asegurar los 3 perfiles por defecto
-        const passwordDefecto = process.env.ADMIN_PASS || 'Mercedes2026*';
+        // 3. Crear / asegurar los perfiles requeridos con sus credenciales oficiales
         const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(passwordDefecto, salt);
 
         const usuariosSemilla = [
-            { username: 'admin', nombre_completo: 'Oficina de Administración', rol: 'Administracion' },
-            { username: 'admin_toece', nombre_completo: 'Coordinación de TOECE', rol: 'TOECE' },
-            { username: 'auxiliar', nombre_completo: 'Auxiliar de Educación', rol: 'Auxiliar' }
+            { username: 'admin', nombre_completo: 'Oficina de Administración', clavePlana: 'Mercedes_admin_2026*', rol: 'Administracion' },
+            { username: 'admin_toece', nombre_completo: 'Coordinación de TOECE', clavePlana: 'Mercedes_toece_2026*', rol: 'TOECE' },
+            { username: 'auxiliar_uno', nombre_completo: 'Auxiliar de Educación - Turno Tarde 1', clavePlana: 'Mercedes_auxiliar1_2026*', rol: 'Auxiliar' },
+            { username: 'auxiliar_dos', nombre_completo: 'Auxiliar de Educación - Turno Tarde 2', clavePlana: 'Mercedes_auxiliar2_2026*', rol: 'Auxiliar' },
+            { username: 'auxiliar_tres', nombre_completo: 'Auxiliar de Educación - Turno Tarde 3', clavePlana: 'Mercedes_auxiliar3_2026*', rol: 'Auxiliar' }
         ];
 
         for (const u of usuariosSemilla) {
+            const passwordHash = await bcrypt.hash(u.clavePlana, salt);
             const [existe] = await pool.query('SELECT id_usuario, rol FROM usuario WHERE username = ? LIMIT 1', [u.username]);
             if (existe.length === 0) {
                 await pool.query(
@@ -59,16 +60,17 @@ async function inicializarBaseDeDatos() {
                     [u.username, u.nombre_completo, passwordHash, u.rol]
                 );
                 console.log(`👤 [Perfil Creado] Usuario: "${u.username}" | Rol: ${u.rol}`);
-            } else if (u.username === 'admin_toece' && existe[0].rol === 'Admin') {
-                // Normalizar el usuario histórico admin_toece al perfil TOECE (o mantener acceso)
+            } else {
+                // Actualiza la contraseña y rol oficiales si ya existía
                 await pool.query(
-                    'UPDATE usuario SET rol = ?, nombre_completo = COALESCE(nombre_completo, ?) WHERE username = ?',
-                    ['TOECE', u.nombre_completo, u.username]
+                    'UPDATE usuario SET password = ?, rol = ?, nombre_completo = COALESCE(nombre_completo, ?) WHERE username = ?',
+                    [passwordHash, u.rol, u.nombre_completo, u.username]
                 );
+                console.log(`🔄 [Perfil Actualizado] Usuario: "${u.username}" | Rol: ${u.rol}`);
             }
         }
 
-        console.log('✅ Perfiles verificados: Administracion (admin), TOECE (admin_toece), Auxiliar (auxiliar).');
+        console.log('✅ Perfiles oficiales verificados y actualizados.');
     } catch (error) {
         console.error('⚠️ Aviso al verificar migraciones automáticas de BD:', error.message);
     }

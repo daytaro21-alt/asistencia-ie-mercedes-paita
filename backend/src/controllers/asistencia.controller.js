@@ -264,10 +264,9 @@ const obtenerResumenDashboard = async (req, res) => {
         }
         sqlPadronDia += `
             ORDER BY
-                CASE WHEN a.id_asistencia IS NOT NULL THEN 0 ELSE 1 END ASC,
-                a.hora_ingreso DESC,
                 e.seccion ASC,
-                e.apellidos ASC
+                e.apellidos ASC,
+                e.nombres ASC
         `;
         const [padronDia] = await pool.query(sqlPadronDia, paramsPadronDia);
         const registros = padronDia.filter(r => r.estado !== 'Sin Registro');
