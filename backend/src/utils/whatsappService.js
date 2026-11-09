@@ -4,6 +4,7 @@ const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
+const { esModoSimulacion } = require('../config/appConfig');
 
 let clienteListo = false;
 let ultimoQrDataUrl = null;
@@ -11,11 +12,15 @@ let estadoTexto = 'Iniciando servicio de WhatsApp...';
 const colaMensajes = [];
 let procesandoCola = false;
 
+// Pausa anti-bloqueo: 20 segundos exactos entre cada mensaje enviado
+const SEGUNDOS_ENTRE_MENSAJES = parseInt(process.env.WHATSAPP_SEGUNDOS_ENTRE_MENSAJES || '20', 10);
+const PAUSA_MS = SEGUNDOS_ENTRE_MENSAJES * 1000;
+
 const rutaAuth = path.resolve(__dirname, '../../.wwebjs_auth');
 
 /**
  * Elimina archivos candado (SingletonLock / SingletonCookie / SingletonSocket)
- * que Chromium deja huérfanos cuando AWS Academy apaga la instancia EC2 de golpe.
+ * que Chromium deja huérfanos cuando AWS apaga la instancia EC2 de golpe.
  */
 const limpiarCandadosChromium = () => {
     try {
@@ -72,8 +77,8 @@ client.on('ready', async () => {
     await new Promise(resolve => setTimeout(resolve, 2500));
     clienteListo = true;
     ultimoQrDataUrl = null;
-    estadoTexto = 'Conectado y listo para enviar alertas';
-    console.log('✅ Servicio de WhatsApp (TOECE) conectado y listo para enviar alertas.');
+    estadoTexto = `Conectado y listo (Envío espaciado a 1 mensaje cada ${SEGUNDOS_ENTRE_MENSAJES} seg)`;
+    console.log(`✅ Servicio de WhatsApp (TOECE) conectado. Cola activa: 1 mensaje cada ${SEGUNDOS_ENTRE_MENSAJES} segundos.`);
     procesarCola();
 });
 
@@ -112,10 +117,32 @@ const normalizarTelefonoPeru = (telefono) => {
     return null;
 };
 
+/**
+ * Procesa la cola de mensajes de forma secuencial:
+ * Envía un mensaje -> Espera 20 segundos -> Envía el siguiente.
+ * Evita bloqueos de Meta/WhatsApp por exceso de velocidad o spam.
+ */
 const procesarCola = async () => {
-    if (procesandoCola || !clienteListo || colaMensajes.length === 0) return;
+    if (procesandoCola || colaMensajes.length === 0) return;
 
     procesandoCola = true;
+
+    // MODO SIMULACIÓN: Drenar la cola sin enviar a teléfonos reales para proteger la cuenta y evitar alertar a padres
+    if (esModoSimulacion()) {
+        console.log(`🧪 [WhatsApp - Modo Simulación Activo] Vaciando cola de ${colaMensajes.length} alertas en modo prueba.`);
+        while (colaMensajes.length > 0) {
+            const item = colaMensajes.shift();
+            console.log(`   [SIMULADO] Para: ${item.telefonoNormalizado} | Alumno: ${item.alumno}`);
+        }
+        procesandoCola = false;
+        return;
+    }
+
+    if (!clienteListo) {
+        console.warn(`⚠️ [WhatsApp] Hay ${colaMensajes.length} mensajes en cola, pero WhatsApp aún no está listo.`);
+        procesandoCola = false;
+        return;
+    }
 
     while (colaMensajes.length > 0 && clienteListo) {
         const item = colaMensajes.shift();
@@ -127,7 +154,7 @@ const procesarCola = async () => {
                 console.warn(`⚠️ El número ${item.telefonoNormalizado} (${item.alumno}) no tiene cuenta activa de WhatsApp.`);
             } else {
                 await client.sendMessage(numberId._serialized, item.mensaje, { sendSeen: false });
-                console.log(`📨 Alerta WhatsApp enviada a ${item.telefonoNormalizado} [Alumno: ${item.alumno}]`);
+                console.log(`📨 [WhatsApp Enviado] A: ${item.telefonoNormalizado} | Alumno: ${item.alumno} | Restan en cola: ${colaMensajes.length}`);
             }
         } catch (error) {
             item.reintentos = (item.reintentos || 0) + 1;
@@ -140,15 +167,19 @@ const procesarCola = async () => {
             }
         }
 
+        // Si aún quedan mensajes en cola, esperar exactamente 20 segundos antes del siguiente
         if (colaMensajes.length > 0) {
-            const delayMs = Math.floor(Math.random() * (6500 - 3500 + 1)) + 3500;
-            await new Promise(resolve => setTimeout(resolve, delayMs));
+            console.log(`⏳ [Anti-Bloqueo] Esperando ${SEGUNDOS_ENTRE_MENSAJES} segundos antes del siguiente mensaje...`);
+            await new Promise(resolve => setTimeout(resolve, PAUSA_MS));
         }
     }
 
     procesandoCola = false;
 };
 
+/**
+ * Encola una alerta y activa el despachador de 20 segundos inmediatamente si no está en marcha.
+ */
 const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza', fecha = '') => {
     const telefonoNormalizado = normalizarTelefonoPeru(telefono);
 
@@ -174,15 +205,22 @@ const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza',
     colaMensajes.push({
         telefonoNormalizado,
         alumno: nombreAlumno,
-        mensaje
+        mensaje,
+        estado,
+        horaRegistro: hora || new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     });
 
-    setImmediate(() => procesarCola());
+    console.log(`📥 [Cola WhatsApp] Alerta agregada para ${nombreAlumno} (${estado}). Total en cola: ${colaMensajes.length}`);
+
+    // Si el despachador no está en ejecución, arrancarlo de inmediato
+    if (!procesandoCola) {
+        setImmediate(() => procesarCola());
+    }
 };
 
 const inicializarWhatsApp = () => {
     limpiarCandadosChromium();
-    console.log('🔄 Inicializando cliente de WhatsApp (LocalAuth)...');
+    console.log(`🔄 Inicializando cliente de WhatsApp (LocalAuth) con cola de ${SEGUNDOS_ENTRE_MENSAJES}s...`);
     client.initialize().catch(err => {
         estadoTexto = `Error al iniciar navegador WhatsApp: ${err.message}`;
         console.error('❌ No se pudo inicializar el cliente de WhatsApp:', err.message);
@@ -193,11 +231,23 @@ const obtenerEstadoWhatsApp = () => ({
     conectado: clienteListo,
     estado: estadoTexto,
     qrDataUrl: clienteListo ? null : ultimoQrDataUrl,
-    colaPendiente: colaMensajes.length
+    colaPendiente: colaMensajes.length,
+    segundosEntreMensajes: SEGUNDOS_ENTRE_MENSAJES,
+    modoSimulacion: esModoSimulacion(),
+    enProceso: procesandoCola
 });
+
+const despacharColaManual = async () => {
+    if (!procesandoCola) {
+        procesarCola();
+    }
+    return { procesados: colaMensajes.length, estado: 'en_marcha' };
+};
 
 module.exports = {
     inicializarWhatsApp,
     enviarAlertaWhatsApp,
-    obtenerEstadoWhatsApp
+    obtenerEstadoWhatsApp,
+    despacharColaManual,
+    procesarCola
 };

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentación de Capacitación | I.E. Nuestra Señora de las Mercedes</title>
+    <link rel="icon" type="image/png" href="frontend/INSIGNIA%20mercedes%20png.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .slide { display: none; }
+        .slide.active { display: flex; }
+        @media print {
+            @page { size: landscape; margin: 0; }
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .slide {
+                display: flex !important;
+                height: 100vh !important;
+                page-break-after: always;
+                break-after: page;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- BARRA DE CONTROLES DEL PRESENTADOR (SE OCULTA AL IMPRIMIR) -->
+    <div class="no-print bg-[#5c0513] text-white border-b-2 border-yellow-400 px-6 py-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <img src="frontend/INSIGNIA%20mercedes%20png.png" alt="Insignia" class="w-7 h-8 bg-white rounded p-0.5">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-yellow-300">
+                Capacitación Oficial — Auxiliares y TOECE
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="cambiarSlide(-1)" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">◀ Anterior</button>
+            <span id="indicadorSlide" class="text-xs font-mono font-bold text-yellow-300">1 / 12</span>
+            <button onclick="cambiarSlide(1)" class="bg-yellow-400 hover:bg-yellow-300 text-[#5c0513] px-3 py-1 rounded-lg text-xs font-extrabold">Siguiente ▶</button>
+            <button onclick="activarPantallaCompleta()" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">⛶ Pantalla Completa</button>
+            <button onclick="descargarPowerPoint()" class="bg-amber-500 hover:bg-amber-400 text-[#5c0513] px-3 py-1 rounded-lg text-xs font-extrabold shadow">📊 Descargar PowerPoint (.pptx)</button>
+            <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded-lg text-xs font-bold">🖨️ Guardar PDF</button>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR DE LAS 12 DIAPOSITIVAS (FORMATO 16:9) -->
+    <div class="flex-1 flex items-center justify-center p-4 print:p-0">
+        <div id="marcoPresentacion" class="w-full max-w-6xl aspect-video bg-[#faf8f5] rounded-2xl shadow-2xl overflow-hidden border-4 border-yellow-400 relative print:rounded-none print:border-0 print:max-w-none print:w-screen print:h-screen">
+
+            <!-- SLIDE 1: PORTADA -->
+            <section class="slide active w-full h-full bg-gradient-to-br from-[#7f091c] via-[#9e0b22] to-[#5c0513] text-white p-10 flex-col justify-between">
+                <div class="grid grid-cols-12 gap-8 h-full items-center">
+                    <div class="col-span-7 space-y-5">
+                        <div class="flex items-center gap-4">
+                            <img src="frontend/INSIGNIA%20mercedes%20png.png" alt="Escudo" class="w-16 h-20 bg-white rounded-xl p-1.5 border-2 border-yellow-400 shadow-lg object-contain">
+                            <div>
+                                <span class="bg-yellow-400 text-[#5c0513] text-xs font-black uppercase px-3 py-1 rounded-full">Capacitación Oficial 2026</span>
+                                <p class="text-sm font-bold text-yellow-200 mt-1">I.E. Nuestra Señora de las Mercedes — Paita</p>
+                            </div>
+                        </div>
+                        <h1 class="text-3xl lg:text-4xl font-black leading-tight">
+                            Sistema Automatizado de Gestión de Asistencia Estudiantil mediante Código QR
+                        </h1>
+                        <p class="text-sm text-red-100 leading-relaxed">
+                            Guía operativa para <strong>Auxiliares de Educación</strong> y <strong>Coordinación de TOECE</strong>.<br>
+                            Piloto 5to de Secundaria (257 Estudiantes • Secciones A – H • Turno Tarde).
+                        </p>
+                        <div class="pt-2 border-t border-white/20 text-xs text-yellow-300 font-bold">
+                            Ponente / Desarrollador: Dayron Iván Talledo Rojas
+                        </div>
+                    </div>
+                    <div class="col-span-5 h-full flex items-center">
+                        <div class="w-full h-80 bg-yellow-50/10 border-2 border-dashed border-yellow-400 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                            <span class="text-3xl mb-2">📸</span>
+                            <p class="text-sm font-extrabold text-yellow-300 uppercase">Espacio para Imagen</p>
+                            <p class="text-xs text-red-100 mt-2">Coloca aquí la captura de la pantalla principal del sistema o foto del portón del colegio.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 2: ANTES VS AHORA -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">1. El Reto y la Solución Tecnológica</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Modernización del control de asistencia en portón y seguimiento en TOECE</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 2 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-stretch">
+                    <div class="col-span-4 bg-rose-50 border-2 border-rose-200 rounded-2xl p-5">
+                        <h3 class="text-sm font-black text-rose-800 uppercase mb-3">❌ Antes (Proceso Manual)</h3>
+                        <ul class="space-y-2.5 text-xs text-slate-700 font-medium list-disc pl-4">
+                            <li>Registro lento en cuadernos físicos en el portón.</li>
+                            <li>Aglomeración y filas de alumnos entre 12:30 y 12:45 PM.</li>
+                            <li>Demora en avisar a los padres sobre tardanzas o inasistencias.</li>
+                            <li>Consolidados mensuales hechos a mano por cada auxiliar.</li>
+                        </ul>
+                    </div>
+                    <div class="col-span-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5">
+                        <h3 class="text-sm font-black text-emerald-800 uppercase mb-3">✅ Ahora (Sistema QR)</h3>
+                        <ul class="space-y-2.5 text-xs text-slate-700 font-medium list-disc pl-4">
+                            <li>Carnet estudiantil con código QR de alta durabilidad (Nivel H).</li>
+                            <li>Lectura en <strong>menos de 1 segundo</strong> (pistola láser o celular).</li>
+                            <li>Alerta automática por <strong>WhatsApp</strong> al apoderado.</li>
+                            <li>PDF en <strong>orden alfabético por sección</strong> y Excel mensual en 1 clic.</li>
+                        </ul>
+                    </div>
+                    <div class="col-span-4 bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-5 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Pega aquí la captura de un Carnet QR generado en <code>/carnets.html</code>.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 3: HORARIOS OFICIALES -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">2. Horarios Oficiales del Turno Tarde</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Reglas automáticas de clasificación de asistencia en portón</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 3 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 space-y-3">
+                        <div class="bg-emerald-50 border-l-8 border-emerald-600 rounded-xl p-3.5">
+                            <span class="text-xs font-black text-emerald-800">🟢 12:30 PM – 12:45:00 PM | INGRESO PUNTUAL</span>
+                            <p class="text-xs text-slate-700 mt-0.5">El alumno pasa su QR, la pantalla marca verde y registra <strong>Puntual</strong>.</p>
+                        </div>
+                        <div class="bg-amber-50 border-l-8 border-amber-500 rounded-xl p-3.5">
+                            <span class="text-xs font-black text-amber-800">🟡 12:45:01 PM – 01:30:00 PM | TARDANZA (+ WHATSAPP)</span>
+                            <p class="text-xs text-slate-700 mt-0.5">Registra <strong>Tardanza</strong> y envía automáticamente la alerta por WhatsApp al padre.</p>
+                        </div>
+                        <div class="bg-sky-50 border-l-8 border-sky-600 rounded-xl p-3.5">
+                            <span class="text-xs font-black text-sky-800">🔵 HASTA LA 01:00:00 PM | PERMISO ESPECIAL POR TRABAJO</span>
+                            <p class="text-xs text-slate-700 mt-0.5">Alumnos con permiso activado por TOECE/Admin registran <strong>Puntual</strong> hasta la 1:00 PM.</p>
+                        </div>
+                        <div class="bg-rose-50 border-l-8 border-rose-600 rounded-xl p-3.5">
+                            <span class="text-xs font-black text-rose-800">🔴 01:30:00 PM EN PUNTO | CIERRE DE PORTÓN (FALTA AUTOMÁTICA)</span>
+                            <p class="text-xs text-slate-700 mt-0.5">Se marca <strong>Falta</strong> a los ausentes y se notifica por WhatsApp a sus apoderados.</p>
+                        </div>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura del recuadro de "Horario Oficial — Turno Tarde".</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 4: CREDENCIALES Y PERFILES -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">3. Credenciales Oficiales por Perfil</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Enlace web: https://sistemaasistenciamercedes.duckdns.org</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 4 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-8">
+                        <table class="w-full text-xs border-collapse bg-white rounded-xl overflow-hidden shadow">
+                            <thead class="bg-[#7f091c] text-white">
+                                <tr>
+                                    <th class="p-2.5 text-left">Perfil / Responsable</th>
+                                    <th class="p-2.5 text-left">Usuario</th>
+                                    <th class="p-2.5 text-left">Contraseña Oficial</th>
+                                    <th class="p-2.5 text-left">Acceso</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 font-medium">
+                                <tr>
+                                    <td class="p-2.5 font-bold">Auxiliar de Educación 1</td>
+                                    <td class="p-2.5 font-mono font-bold text-[#7f091c]">auxiliar_uno</td>
+                                    <td class="p-2.5 font-mono bg-amber-50 font-bold">Mercedes_auxiliar1_2026*</td>
+                                    <td class="p-2.5">Asistencia, PDF por sección, Excel mensual y Chat IA</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold">Auxiliar de Educación 2</td>
+                                    <td class="p-2.5 font-mono font-bold text-[#7f091c]">auxiliar_dos</td>
+                                    <td class="p-2.5 font-mono bg-amber-50 font-bold">Mercedes_auxiliar2_2026*</td>
+                                    <td class="p-2.5">Asistencia, PDF por sección, Excel mensual y Chat IA</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold">Auxiliar de Educación 3</td>
+                                    <td class="p-2.5 font-mono font-bold text-[#7f091c]">auxiliar_tres</td>
+                                    <td class="p-2.5 font-mono bg-amber-50 font-bold">Mercedes_auxiliar3_2026*</td>
+                                    <td class="p-2.5">Asistencia, PDF por sección, Excel mensual y Chat IA</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold text-sky-800">Coordinación TOECE</td>
+                                    <td class="p-2.5 font-mono font-bold text-sky-800">admin_toece</td>
+                                    <td class="p-2.5 font-mono bg-sky-50 font-bold">Mercedes_toece_2026*</td>
+                                    <td class="p-2.5">+ Celulares WhatsApp, Permiso 1PM, Carnets y Cierre</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 font-bold text-emerald-800">Administración</td>
+                                    <td class="p-2.5 font-mono font-bold text-emerald-800">admin</td>
+                                    <td class="p-2.5 font-mono bg-emerald-50 font-bold">Mercedes_admin_2026*</td>
+                                    <td class="p-2.5">+ Altas/Bajas, Traslados de Sección e Importar SIAGIE</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-span-4 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-5 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura de la pantalla de Login con los 3 botones de perfil.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 5: MODO KIOSCO PORTÓN -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">4. Operación en el Portón (Modo Kiosco QR)</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Escaneo con Pistola Láser USB o Cámara de Celular</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 5 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <p class="font-black text-sm text-[#7f091c]">Dos modalidades de lectura en el portón:</p>
+                        <p><strong>1. Lectora Láser USB (Laptop):</strong> El cursor permanece activo automáticamente. Al pasar el carnet, lee los 8 dígitos del DNI y registra en menos de 50 milisegundos.</p>
+                        <p><strong>2. Cámara de Celular / Tablet:</strong> Pulsando el botón <em>"Activar Cámara"</em> se abre el lector óptico trasero.</p>
+                        <p class="font-black text-sm text-[#7f091c] pt-2">Semáforo Visual y Auditivo:</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong class="text-emerald-700">VERDE:</strong> Ingreso Puntual confirmado.</li>
+                            <li><strong class="text-amber-700">ÁMBAR:</strong> Ingreso con Tardanza (dispara WhatsApp).</li>
+                            <li><strong class="text-rose-700">ROJO:</strong> Doble escaneo bloqueado (el alumno ya registró entrada hoy).</li>
+                        </ul>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura de la vista "Portón QR" al escanear un alumno.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 6: WHATSAPP -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">5. Alertas Automáticas por WhatsApp al Apoderado</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Notificación en tiempo real con cola inteligente anti-bloqueo</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 6 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <h3 class="font-black text-sm text-[#7f091c]">¿Cómo funciona la mensajería a los padres?</h3>
+                        <p><strong>• Vinculación en el Panel TOECE:</strong> En la pestaña <em>"WhatsApp y Apoderados"</em> se muestra el código QR para vincular el celular de TOECE una sola vez.</p>
+                        <p><strong>• Envío Desacoplado:</strong> Cada vez que un alumno registra <strong>Tardanza</strong> o <strong>Falta</strong> (y tiene celular de apoderado registrado), el sistema redacta y envía el reporte oficial con el nombre del estudiante, fecha y hora exacta.</p>
+                        <p><strong>• Protección Anti-Spam:</strong> Los mensajes se despachan con un intervalo aleatorio de 3.5 a 6.5 segundos para evitar bloqueos de Meta.</p>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura del mensaje real de WhatsApp recibido en el celular.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 7: MONITOREO AUXILIARES -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">6. Monitoreo en Tiempo Real para Auxiliares</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Filtros por sección (5to A – 5to H), estado y buscador por DNI/Apellidos</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 7 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <p><strong>• Tarjetas KPI Interactivas:</strong> Al hacer clic sobre <em>Puntuales</em>, <em>Tardanzas</em>, <em>Faltaron</em> o <em>Sin Registro</em>, la tabla filtra inmediatamente a esos alumnos.</p>
+                        <p><strong>• Selector de Sección:</strong> Permite al auxiliar elegir su sección (5to A, 5to B... 5to H) y ver toda su nómina ordenada alfabéticamente.</p>
+                        <p><strong>• Filtro "✅ No Faltaron (Asistieron)":</strong> Muestra juntos a todos los alumnos presentes en el colegio (Puntuales + Tardanzas).</p>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura de la vista de Monitoreo con las 5 tarjetas superiores.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 8: IMPRESIÓN PDF POR SECCIÓN Y ORDEN ALFABÉTICO -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">7. Descarga e Impresión PDF del Día (Orden Alfabético)</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Reporte oficial A4 separado por sección según lista oficial</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 8 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <h3 class="font-black text-sm text-amber-700">Botón Dorado: "Imprimir PDF del Día"</h3>
+                        <p><strong>1. Orden Alfabético (A – Z):</strong> La nómina impresa respeta siempre el orden de lista por Apellidos y Nombres (1, 2, 3...), independientemente de la hora de entrada.</p>
+                        <p><strong>2. Reporte Independiente por Sección:</strong> Si se imprime todo 5to grado, el sistema genera primero la hoja de <strong>5to "A"</strong>, luego en otra página <strong>5to "B"</strong>, hasta <strong>5to "H"</strong> con sus propios totales y espacio de firma para el Auxiliar de cada sección.</p>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura del reporte PDF A4 generado por sección.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 9: EXCEL MENSUAL Y BACKUP SEMANAL -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">8. Consolidado Mensual en Excel y Backup Semanal</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Descarga de sábana mensual/semanal por sección y respaldo automático</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 9 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <h3 class="font-black text-sm text-emerald-700">Botón Verde: "Descargar Excel (Mes / Semana)"</h3>
+                        <p><strong>• Selección de Sección y Periodo:</strong> El auxiliar elige su sección (ej. 5to "B") y el mes completo o rango semanal.</p>
+                        <p><strong>• Sábana de Asistencia en Orden Alfabético:</strong> Genera un archivo <code>.xlsx</code> con todos los días hábiles del mes marcando <strong>P</strong> (Puntual), <strong>T</strong> (Tardanza), <strong>F</strong> (Falta) y calculando el total y <strong>% de asistencia</strong> de cada alumno.</p>
+                        <p><strong>• Backup Semanal Automático:</strong> Todos los domingos a las 11:00 PM el servidor guarda una copia comprimida de la base de datos.</p>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura de la ventana "Descargar Asistencia en Excel" o del Excel abierto.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 10: AGENTE IA -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">9. Asistente Analítico con Inteligencia Artificial</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Consultas en lenguaje natural para Auxiliares y TOECE</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 10 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <p>El panel derecho cuenta con un <strong>Agente de Inteligencia Artificial (Gemini 2.5 Flash)</strong> conectado en tiempo real a la base de datos de asistencia.</p>
+                        <p class="font-bold text-[#7f091c]">Consultas que puedes realizar con 1 clic o escribiendo:</p>
+                        <ul class="list-disc pl-5 space-y-1.5">
+                            <li><em>"¿Quiénes llegaron tarde hoy en 5to A?"</em></li>
+                            <li><em>"Dame el resumen estadístico de asistencia de hoy por secciones"</em></li>
+                            <li><em>"¿Qué alumnos registraron falta ayer en 5to D?"</em></li>
+                        </ul>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura del Chat IA respondiendo una consulta.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 11: CASOS ESPECIALES -->
+            <section class="slide w-full h-full flex-col justify-between">
+                <header class="bg-[#7f091c] text-white px-8 py-4 border-b-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">10. Gestión de Permisos 1:00 PM, Traslados y Carnets</h2>
+                        <p class="text-xs text-yellow-300 font-semibold">Administración ágil del padrón estudiantil</p>
+                    </div>
+                    <span class="text-xs bg-yellow-400 text-[#5c0513] font-black px-3 py-1 rounded-lg">Diapositiva 11 / 12</span>
+                </header>
+                <div class="flex-1 p-8 grid grid-cols-12 gap-6 items-center">
+                    <div class="col-span-7 bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-xs">
+                        <p><strong>1. Permiso de Ingreso 1:00 PM (Por Trabajo):</strong> Se activa con un clic sobre el alumno para otorgarle tolerancia puntual hasta las 13:00:00 hrs.</p>
+                        <p><strong>2. Traslado de Estudiante a Otra Sección:</strong> Permite cambiar a un alumno (ej. de 5to A a 5to F) conservando todo su historial de asistencia.</p>
+                        <p><strong>3. Reimpresión de Carnets QR:</strong> Si un alumno pierde su carnet, desde <em>"Imprimir Carnets QR"</em> se busca por DNI o apellido y se imprime al instante.</p>
+                    </div>
+                    <div class="col-span-5 h-full bg-amber-50 border-2 border-dashed border-amber-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl mb-2">📸</span>
+                        <p class="text-xs font-black text-[#7f091c] uppercase">Espacio para Imagen</p>
+                        <p class="text-xs text-slate-600 mt-1">Coloca aquí la captura del módulo de Traslado de Sección o de Impresión de Carnets.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 12: CIERRE -->
+            <section class="slide w-full h-full bg-gradient-to-br from-[#7f091c] via-[#9e0b22] to-[#5c0513] text-white p-10 flex-col items-center justify-center text-center">
+                <img src="frontend/INSIGNIA%20mercedes%20png.png" alt="Escudo" class="w-20 h-24 bg-white rounded-2xl p-1.5 border-2 border-yellow-400 shadow-xl mb-4 object-contain">
+                <h2 class="text-3xl font-black text-white">¡Muchas Gracias!</h2>
+                <p class="text-sm text-yellow-300 font-bold mt-1">I.E. Nuestra Señora de las Mercedes — Paita • "Saber, Progreso y Felicidad"</p>
+                <div class="mt-6 bg-black/25 border border-yellow-400/50 rounded-2xl px-8 py-4 text-xs space-y-1">
+                    <p class="text-yellow-300 font-bold uppercase">Enlace Oficial del Sistema:</p>
+                    <p class="text-base font-mono font-black text-white">https://sistemaasistenciamercedes.duckdns.org</p>
+                    <p class="text-red-200 pt-1">Desarrollador y Soporte Técnico: Dayron Iván Talledo Rojas</p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <input type="file" id="selectorImagenSlide" accept="image/*" class="hidden">
+
+    <script>
+        let indiceActual = 0;
+        const slides = document.querySelectorAll('.slide');
+        const indicador = document.getElementById('indicadorSlide');
+        const imagenesSubidas = {}; // Guarda base64 por índice de slide (1..11)
+
+        function mostrarSlide(idx) {
+            slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+            indicador.innerText = `${idx + 1} / ${slides.length}`;
+        }
+
+        function cambiarSlide(delta) {
+            indiceActual = (indiceActual + delta + slides.length) % slides.length;
+            mostrarSlide(indiceActual);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') cambiarSlide(1);
+            if (e.key === 'ArrowLeft') cambiarSlide(-1);
+        });
+
+        function activarPantallaCompleta() {
+            const elem = document.getElementById('marcoPresentacion');
+            if (elem.requestFullscreen) elem.requestFullscreen();
+        }
+
+        // Hacer clicables todos los recuadros punteados de "Espacio para Imagen"
+        let cajaImagenActiva = null;
+        let numSlideActivo = null;
+        const inputImg = document.getElementById('selectorImagenSlide');
+
+        document.querySelectorAll('.slide').forEach((slideEl, sIdx) => {
+            const caja = slideEl.querySelector('.border-dashed');
+            if (caja) {
+                caja.classList.add('cursor-pointer', 'hover:scale-[1.01]', 'transition', 'relative', 'overflow-hidden');
+                caja.title = 'Haz clic aquí para elegir una imagen de tu computadora';
+                caja.addEventListener('click', () => {
+                    cajaImagenActiva = caja;
+                    numSlideActivo = sIdx + 1;
+                    inputImg.value = '';
+                    inputImg.click();
+                });
+            }
+        });
+
+        inputImg.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || !cajaImagenActiva) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const dataUrl = ev.target.result;
+                imagenesSubidas[numSlideActivo] = dataUrl;
+                cajaImagenActiva.innerHTML = `<img src="${dataUrl}" class="w-full h-full object-contain rounded-xl" alt="Captura del Sistema">`;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Generador directo de PowerPoint (.pptx) en el navegador
+        async function descargarPowerPoint() {
+            if (typeof PptxGenJS === 'undefined') {
+                alert('Cargando librería PowerPoint. Verifica tu conexión a internet e intenta nuevamente.');
+                return;
+            }
+            const pptx = new PptxGenJS();
+            pptx.layout = 'LAYOUT_16x9';
+            pptx.author = 'Dayron Iván Talledo Rojas';
+            pptx.company = 'I.E. Nuestra Señora de las Mercedes - Paita';
+            pptx.title = 'Capacitación: Sistema Automatizado de Asistencia QR';
+
+            const C_GUINDA = '7F091C', C_ROJO = 'C8102E', C_DORADO = 'FACC15', C_DORADO_OSC = 'B45309';
+            const C_FONDO = 'FAF8F5', C_BLANCO = 'FFFFFF', C_TEXTO = '1E293B', C_GRIS = '64748B';
+            const C_VERDE = '059669', C_AZUL = '0284C7';
+
+            function aplicarCabecera(slide, num, titulo, subtitulo) {
+                slide.background = { color: C_FONDO };
+                slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: C_GUINDA } });
+                slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0.9, w: 10, h: 0.06, fill: { color: C_DORADO } });
+                slide.addText(titulo, { x: 0.4, y: 0.12, w: 8.2, h: 0.42, fontSize: 19, bold: true, color: C_BLANCO, fontFace: 'Arial' });
+                slide.addText(subtitulo, { x: 0.4, y: 0.5, w: 8.2, h: 0.3, fontSize: 11, color: C_DORADO, bold: true, fontFace: 'Arial' });
+                slide.addShape(pptx.ShapeType.rect, { x: 0, y: 5.3, w: 10, h: 0.325, fill: { color: 'F1F5F9' } });
+                slide.addText('I.E. Nuestra Señora de las Mercedes - Paita  |  Auxiliares y TOECE  |  Piloto 5to de Secundaria', { x: 0.4, y: 5.33, w: 7.5, h: 0.25, fontSize: 9, color: C_GRIS, bold: true });
+                slide.addText(`Diapositiva ${num} de 12`, { x: 8.2, y: 5.33, w: 1.4, h: 0.25, fontSize: 9, color: C_GUINDA, bold: true, align: 'right' });
+            }
+
+            function agregarMarcoImagen(slide, numSlide, x, y, w, h, instruccion) {
+                if (imagenesSubidas[numSlide]) {
+                    slide.addImage({ data: imagenesSubidas[numSlide], x, y, w, h });
+                    return;
+                }
+                slide.addShape(pptx.ShapeType.roundRect, { x, y, w, h, fill: { color: 'FFFBEB' }, line: { color: C_DORADO_OSC, width: 2, dashType: 'dash' }, rectRadius: 0.08 });
+                slide.addText([
+                    { text: '📸 ESPACIO PARA CAPTURA / IMAGEN\n\n', options: { fontSize: 12, bold: true, color: C_GUINDA } },
+                    { text: instruccion, options: { fontSize: 10.5, color: C_TEXTO, italic: true } }
+                ], { x: x + 0.15, y: y + 0.15, w: w - 0.3, h: h - 0.3, align: 'center', valign: 'middle' });
+            }
+
+            // Slide 1
+            const s1 = pptx.addSlide();
+            s1.background = { color: C_GUINDA };
+            s1.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.25, h: 5.625, fill: { color: C_DORADO } });
+            s1.addText('I.E. NUESTRA SEÑORA DE LAS MERCEDES — PAITA', { x: 0.65, y: 0.7, w: 5.1, h: 0.35, fontSize: 12, bold: true, color: C_DORADO });
+            s1.addText(' CAPACITACIÓN OFICIAL: AUXILIARES Y TOECE ', { x: 0.65, y: 1.1, w: 3.8, h: 0.32, fontSize: 10, bold: true, color: C_GUINDA, fill: { color: C_DORADO } });
+            s1.addText('Sistema Automatizado de Gestión de Asistencia Estudiantil mediante Código QR', { x: 0.65, y: 1.8, w: 5.1, h: 1.4, fontSize: 22, bold: true, color: C_BLANCO });
+            s1.addText('Piloto: 5to Grado de Secundaria (257 Estudiantes • Secciones A – H)\nTurno Tarde • Alertas WhatsApp • Reportes A4 • Inteligencia Artificial', { x: 0.65, y: 3.35, w: 5.1, h: 0.75, fontSize: 11.5, color: 'FDE047' });
+            s1.addText('Ponente / Desarrollador: Dayron Iván Talledo Rojas', { x: 0.65, y: 4.5, w: 5.1, h: 0.4, fontSize: 12, bold: true, color: C_BLANCO });
+            agregarMarcoImagen(s1, 1, 6.0, 0.7, 3.6, 4.2, 'Pega aquí la captura de la pantalla principal del sistema (https://sistemaasistenciamercedes.duckdns.org)');
+
+            // Slide 2
+            const s2 = pptx.addSlide();
+            aplicarCabecera(s2, 2, '1. El Reto y la Solución Tecnológica', 'Modernización del control de ingreso en el portón y seguimiento en TOECE');
+            s2.addShape(pptx.ShapeType.roundRect, { x: 0.4, y: 1.2, w: 2.8, h: 3.85, fill: { color: 'FEF2F2' }, line: { color: 'FCA5A5', width: 1.5 } });
+            s2.addText('❌ ANTES (Manual)\n\n• Registro lento en cuadernos.\n• Colas en el portón.\n• Padres sin aviso oportuno.\n• Consolidados hechos a mano.', { x: 0.55, y: 1.35, w: 2.5, h: 3.4, fontSize: 11, color: C_TEXTO, valign: 'top' });
+            s2.addShape(pptx.ShapeType.roundRect, { x: 3.35, y: 1.2, w: 3.0, h: 3.85, fill: { color: 'ECFDF5' }, line: { color: '6EE7B7', width: 1.5 } });
+            s2.addText('✅ AHORA (Sistema QR)\n\n• Carnet QR único (Nivel H).\n• Escaneo en < 1 segundo.\n• WhatsApp automático al padre.\n• PDF alfabético y Excel mensual.', { x: 3.5, y: 1.35, w: 2.7, h: 3.4, fontSize: 11, color: C_TEXTO, valign: 'top' });
+            agregarMarcoImagen(s2, 2, 6.55, 1.2, 3.05, 3.85, 'Coloca aquí la imagen de un Carnet Estudiantil QR');
+
+            // Slide 3
+            const s3 = pptx.addSlide();
+            aplicarCabecera(s3, 3, '2. Horarios Oficiales y Reglas del Turno Tarde', 'Criterios automáticos de clasificación de asistencia en portón');
+            s3.addText('• 12:30 PM a 12:45 PM — PUNTUAL (Verde): Registro puntual en el sistema.\n\n• 12:45:01 PM a 01:30 PM — TARDANZA (Ámbar + WhatsApp): Registra tardanza y avisa al apoderado.\n\n• HASTA 01:00 PM — PERMISO ESPECIAL POR TRABAJO: Alumnos autorizados marcan Puntual hasta la 1:00 PM.\n\n• 01:30 PM EN PUNTO — CIERRE DE PORTÓN (Falta + WhatsApp): Marca inasistencia automática y notifica a los padres.', { x: 0.4, y: 1.25, w: 5.9, h: 3.8, fontSize: 11, color: C_TEXTO, fill: { color: C_BLANCO }, valign: 'middle' });
+            agregarMarcoImagen(s3, 3, 6.5, 1.25, 3.1, 3.8, 'Coloca aquí la captura del horario en la vista Portón QR');
+
+            // Slide 4
+            const s4 = pptx.addSlide();
+            aplicarCabecera(s4, 4, '3. Credenciales Oficiales y Perfiles de Acceso', 'Enlace oficial: https://sistemaasistenciamercedes.duckdns.org');
+            s4.addTable([
+                [{ text: 'PERFIL', options: { bold: true, fill: C_GUINDA, color: C_BLANCO } }, { text: 'USUARIO', options: { bold: true, fill: C_GUINDA, color: C_BLANCO } }, { text: 'CONTRASEÑA', options: { bold: true, fill: C_GUINDA, color: C_BLANCO } }, { text: 'PERMISOS', options: { bold: true, fill: C_GUINDA, color: C_BLANCO } }],
+                ['Auxiliar 1', 'auxiliar_uno', 'Mercedes_auxiliar1_2026*', 'Monitoreo, PDF alfabético, Excel mensual e IA'],
+                ['Auxiliar 2', 'auxiliar_dos', 'Mercedes_auxiliar2_2026*', 'Monitoreo, PDF alfabético, Excel mensual e IA'],
+                ['Auxiliar 3', 'auxiliar_tres', 'Mercedes_auxiliar3_2026*', 'Monitoreo, PDF alfabético, Excel mensual e IA'],
+                ['TOECE', 'admin_toece', 'Mercedes_toece_2026*', 'Todo + WhatsApp, Permiso 1PM, Carnets y Cierre'],
+                ['Administración', 'admin', 'Mercedes_admin_2026*', 'Control Total + Altas/Bajas, Traslados y SIAGIE']
+            ], { x: 0.4, y: 1.25, w: 6.0, h: 3.7, colW: [1.2, 1.2, 1.85, 1.75], fontSize: 9.5, border: { pt: 1, color: 'CBD5E1' }, fill: { color: C_BLANCO } });
+            agregarMarcoImagen(s4, 4, 6.55, 1.25, 3.05, 3.7, 'Coloca aquí la captura de la ventana de Login');
+
+            // Slides 5 a 11
+            const contenidos = [
+                [5, '4. Operación en el Portón (Modo Kiosco QR)', 'Registro con Pistola Lectora USB o Cámara de Celular', '• Opción A (Pistola Lectora USB): Apunta el láser al carnet del alumno; registra en < 1 segundo con alerta sonora.\n\n• Opción B (Cámara de Celular/Tablet): Pulsa "Activar Cámara" y enfoca el QR.\n\n• Semáforo Visual:\n  - VERDE: Ingreso Puntual.\n  - ÁMBAR: Tardanza (+ WhatsApp).\n  - ROJO: Doble escaneo bloqueado.', 'Coloca aquí la captura de la vista Portón QR escaneando un carnet'],
+                [6, '5. Alertas Automáticas por WhatsApp al Apoderado', 'Comunicación en tiempo real ante Tardanzas y Faltas', '• Vinculación Única: TOECE escanea el QR en "WhatsApp y Apoderados" una sola vez.\n\n• Envío Automático: Al registrar tardanza (>12:45 PM) o al cerrar portón (1:30 PM), el padre recibe el mensaje con fecha y hora exacta.\n\n• Cola Anti-Bloqueo: Pausa inteligente de 3.5 a 6.5 seg entre mensajes.', 'Coloca aquí la captura del mensaje de WhatsApp recibido en el celular'],
+                [7, '6. Panel de Monitoreo Diario para Auxiliares', 'Control en vivo por sección (5to A hasta 5to H)', '• Tarjetas KPI Superiores: Total Padrón (257), Puntuales, Tardanzas, Faltas y Sin Registro.\n\n• Filtro por Sección: Elige 5to A, 5to B... 5to H para ver solo tu aula.\n\n• Filtros Rápidos: "Todos", "No Faltaron", "Puntuales", "Llegaron Tarde" o "Faltaron".', 'Coloca aquí la captura de la tabla de monitoreo diario'],
+                [8, '7. Impresión de Asistencia Diaria en PDF por Sección', 'Orden Alfabético Estricto (A–Z) e impresión separada por sección', '• Orden Alfabético Oficial: Imprime SIEMPRE de la A a la Z por apellidos, sin importar la hora de entrada.\n\n• Por Sección Individual o Todas: Si eliges 5to A imprime 5to A; si eliges "Todas", imprime 5to A, 5to B... 5to H en páginas A4 separadas.\n\n• Incluye firma del Auxiliar y V°B° de TOECE.', 'Coloca aquí la captura del PDF listo para imprimir en orden alfabético'],
+                [9, '8. Descarga de Consolidado Mensual en Excel y Backups', 'Sábana mensual/semanal descargable por cada auxiliar', '• Botón Verde "Descargar Excel (Mes / Semana)": Elige la sección (ej. 5to A) y el mes (ej. Noviembre 2026).\n\n• Contenido del Excel: Lista de alumnos de la A a la Z con días hábiles (P, T, F), totales y % de asistencia.\n\n• Backup Semanal Automático: Cada domingo a las 11:00 PM en el servidor.', 'Coloca aquí la captura del modal de exportación o del archivo Excel abierto'],
+                [10, '9. Asistente Analítico Institucional con IA', 'Consultas en lenguaje natural con Gemini 2.5 Flash', '• Chat IA Lateral: Permite pedir reportes escribiendo en lenguaje cotidiano.\n\n• Ejemplos de consultas:\n  - "¿Quiénes llegaron tarde hoy en 5to A?"\n  - "Dame el resumen estadístico de asistencia de hoy por secciones"\n  - "¿Qué alumnos faltaron ayer en 5to D?"', 'Coloca aquí la captura del Asistente IA respondiendo una consulta'],
+                [11, '10. Gestión de Permisos 1:00 PM, Traslados y Carnets', 'Soluciones rápidas para casos especiales del día a día', '• Permiso 1:00 PM (Trabajo): Actívalo con 1 clic sobre el alumno para darle tolerancia puntual hasta la 1:00 PM.\n\n• Traslado de Sección: Cambia a un alumno de sección (ej. 5to A a 5to F) conservando su historial.\n\n• Reimpresión de Carnets: Busca por DNI o apellido en "Imprimir Carnets QR".', 'Coloca aquí la captura del módulo de Traslado de Sección o Carnets QR']
+            ];
+
+            contenidos.forEach(([num, tit, sub, texto, inst]) => {
+                const s = pptx.addSlide();
+                aplicarCabecera(s, num, tit, sub);
+                s.addShape(pptx.ShapeType.roundRect, { x: 0.4, y: 1.25, w: 5.8, h: 3.8, fill: { color: C_BLANCO }, line: { color: 'CBD5E1', width: 1 } });
+                s.addText(texto, { x: 0.6, y: 1.4, w: 5.4, h: 3.5, fontSize: 11, color: C_TEXTO, valign: 'middle' });
+                agregarMarcoImagen(s, num, 6.4, 1.25, 3.2, 3.8, inst);
+            });
+
+            // Slide 12
+            const s12 = pptx.addSlide();
+            s12.background = { color: C_GUINDA };
+            s12.addText('¡Muchas Gracias!', { x: 0.8, y: 1.6, w: 8.4, h: 0.6, fontSize: 28, bold: true, color: C_BLANCO, align: 'center' });
+            s12.addText('I.E. NUESTRA SEÑORA DE LAS MERCEDES — PAITA\n"Saber, Progreso y Felicidad"', { x: 1.0, y: 2.3, w: 8.0, h: 0.6, fontSize: 14, bold: true, color: C_DORADO, align: 'center' });
+            s12.addText('Enlace Oficial: https://sistemaasistenciamercedes.duckdns.org\nDesarrollador y Soporte Técnico: Dayron Iván Talledo Rojas', { x: 1.5, y: 3.3, w: 7.0, h: 1.1, fontSize: 12, bold: true, color: C_BLANCO, fill: { color: '5C0513' }, align: 'center', valign: 'middle' });
+
+            await pptx.writeFile({ fileName: 'Capacitacion_Asistencia_QR_Mercedes.pptx' });
+        }
+    </script>
+</body>
+</html>

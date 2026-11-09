@@ -13,11 +13,14 @@ const {
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
     importarExcelWeb,
-    exportarReporteConsolidadoExcel
+    exportarReporteConsolidadoExcel,
+    limpiarAsistenciaDia,
+    obtenerEstadoSimulacion,
+    alternarModoSimulacionController
 } = require('../controllers/asistencia.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
-const { obtenerEstadoWhatsApp } = require('../utils/whatsappService');
+const { obtenerEstadoWhatsApp, despacharColaManual } = require('../utils/whatsappService');
 
 // ==========================================
 // 1. RUTAS PÚBLICAS / KIOSCO PORTÓN
@@ -72,6 +75,26 @@ router.put('/estudiantes/:dni/permiso', verificarToken, verificarRol(['TOECE', '
 router.get('/whatsapp/estado', verificarToken, verificarRol(['TOECE', 'Administracion']), (req, res) => {
     return res.status(200).json(obtenerEstadoWhatsApp());
 });
+
+// Despacho manual inmediato de las alertas de WhatsApp encoladas
+router.post('/whatsapp/despachar', verificarToken, verificarRol(['TOECE', 'Administracion']), async (req, res) => {
+    try {
+        const resultado = await despacharColaManual();
+        return res.status(200).json({
+            mensaje: `Despacho de WhatsApp procesado. Mensajes enviados: ${resultado.procesados}.`,
+            ...resultado
+        });
+    } catch (err) {
+        return res.status(500).json({ error: 'Error al despachar la cola de WhatsApp.' });
+    }
+});
+
+// Modo Simulación / Capacitación (para pruebas fuera de horario como 4:00 PM sin bloquear portón ni alertar a padres reales)
+router.get('/asistencia/modo-simulacion', obtenerEstadoSimulacion);
+router.post('/asistencia/modo-simulacion', verificarToken, verificarRol(['TOECE', 'Administracion']), alternarModoSimulacionController);
+
+// Limpiar asistencia de prueba del día (para reiniciar el padrón de hoy tras la capacitación)
+router.post('/asistencia/limpiar-dia', verificarToken, verificarRol(['TOECE', 'Administracion']), limpiarAsistenciaDia);
 
 // ==========================================
 // 4. RUTAS EXCLUSIVAS DE ADMINISTRACIÓN
