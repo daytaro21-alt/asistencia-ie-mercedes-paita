@@ -86,20 +86,25 @@
                     <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-dorado-400 text-mercedes-900">PERÚ</span>
                 </div>
 
-                <!-- Selector de Modo: Kiosco Portón vs Permisos vs Panel Institucional -->
-                <div class="flex bg-mercedes-900/80 p-1 rounded-xl border border-dorado-400/40">
+                <!-- Selector de Modo: Kiosco Portón vs Permisos vs Portería vs Panel Institucional -->
+                <div class="flex flex-wrap bg-mercedes-900/80 p-1 rounded-xl border border-dorado-400/40 gap-1">
                     <button id="btnModoKiosco" onclick="cambiarModo('kiosco')"
-                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow">
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow">
                         <i data-lucide="scan-line" class="w-4 h-4"></i>
                         Portón QR
                     </button>
                     <button id="btnModoPermisos" onclick="cambiarModo('permisos')"
-                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
                         <i data-lucide="door-open" class="w-4 h-4"></i>
                         Permisos
                     </button>
+                    <button id="btnModoPorteria" onclick="cambiarModo('porteria')"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        Portería
+                    </button>
                     <button id="btnModoToece" onclick="cambiarModo('toece')"
-                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
                         <i data-lucide="shield-check" class="w-4 h-4"></i>
                         Acceso Perfiles
                     </button>
@@ -389,6 +394,91 @@
                         <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando permisos de salida...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- VISTA 1C: PORTERÍA (VERIFICACIÓN DE PERMISOS DE SALIDA)   -->
+    <!-- ========================================================= -->
+    <main id="vistaPorteria" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        <!-- Columna Izquierda (5 cols): Escáner QR para el Portero -->
+        <div class="lg:col-span-5 bg-white border-t-4 border-t-emerald-600 border-x border-b border-slate-200 rounded-2xl p-6 shadow-md space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Control de Portería
+                </span>
+                <span class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    Verificación de Salidas
+                </span>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-extrabold text-slate-900">Verificador de Salida QR</h2>
+                <p class="text-xs text-slate-500 mt-1">
+                    Escanea el carnet del estudiante en puerta para confirmar si el Auxiliar o TOECE autorizó su salida hoy.
+                </p>
+            </div>
+
+            <form onsubmit="procesarQrPorteriaManual(event)" class="space-y-3">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Lectura de Código QR (DNI 8 dígitos)
+                </label>
+                <div class="relative">
+                    <input type="text" id="inputDniPorteria" maxlength="8" autocomplete="off"
+                        placeholder="Escanea el carnet en portería..."
+                        class="w-full bg-slate-50 border-2 border-emerald-600 rounded-xl px-4 py-3.5 text-lg font-mono font-bold tracking-widest text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white">
+                    <button type="submit"
+                        class="absolute right-2 top-2 bottom-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 rounded-lg text-sm transition shadow flex items-center gap-1.5">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        Verificar
+                    </button>
+                </div>
+            </form>
+
+            <!-- Botón Cámara Web/Celular para Portero -->
+            <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">¿Escanear con cámara de celular/tablet?</span>
+                <button id="btnToggleCamaraPorteria" type="button" onclick="alternarCamaraPorteriaQR()"
+                    class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-600"></i>
+                    <span>Activar Cámara</span>
+                </button>
+            </div>
+
+            <div id="contenedorCamaraPorteria" class="hidden mt-3 rounded-xl overflow-hidden border-2 border-emerald-600 bg-black">
+                <div id="readerQrPorteria" class="w-full"></div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha (7 cols): Alerta Visual Gigante e Historial de Portería -->
+        <div class="lg:col-span-7 space-y-6">
+            <div id="tarjetaResultadoPorteria" class="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center shadow-sm transition-all">
+                <p id="badgeEstadoPorteria" class="inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-slate-100 text-slate-500 mb-3">
+                    ESPERANDO VERIFICACIÓN EN PORTERÍA
+                </p>
+                <h3 id="nombreAlumnoPorteria" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Listo para verificar salida
+                </h3>
+                <p id="detalleAlumnoPorteria" class="text-sm text-slate-500 font-medium mt-1.5">
+                    Pasa el carnet QR del estudiante para comprobar si cuenta con permiso de salida hoy
+                </p>
+                <div id="infoExtraPorteria" class="hidden mt-4 bg-white/80 border border-slate-200 rounded-xl p-3 text-xs text-left space-y-1"></div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                        Últimas verificaciones en portería
+                    </h4>
+                    <span id="contadorPorteriaLocal" class="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">0 verificaciones</span>
+                </div>
+                <div id="listaUltimasPorteria" class="divide-y divide-slate-100 max-h-60 overflow-y-auto text-sm">
+                    <p class="text-xs text-slate-400 py-6 text-center">Aún no se han verificado carnets en portería en esta sesión.</p>
+                </div>
             </div>
         </div>
     </main>
@@ -982,8 +1072,11 @@
         let camaraActiva = false;
         let html5QrPermisosScanner = null;
         let camaraPermisosActiva = false;
+        let html5QrPorteriaScanner = null;
+        let camaraPorteriaActiva = false;
         let modoPendienteLogin = 'toece';
         const historialLocalPorton = [];
+        const historialLocalPorteria = [];
 
         // Estado local para filtrado rápido en el panel de monitoreo (Auxiliar / TOECE / Admin)
         let padronDiaCache = [];
@@ -1102,36 +1195,45 @@
             }
         }
 
-        // Alternar entre Vista Kiosco Portón, Permisos de Salida y Panel Institucional
+        // Alternar entre Vista Kiosco Portón, Permisos de Salida, Portería y Panel Institucional
         function cambiarModo(modo) {
             if (modo !== 'kiosco' && camaraActiva) alternarCamaraQR();
             if (modo !== 'permisos' && camaraPermisosActiva) alternarCamaraPermisosQR();
+            if (modo !== 'porteria' && camaraPorteriaActiva) alternarCamaraPorteriaQR();
 
             const vKiosco = document.getElementById('vistaKiosco');
             const vPerm = document.getElementById('vistaPermisos');
+            const vPort = document.getElementById('vistaPorteria');
             const vLogin = document.getElementById('vistaLogin');
             const vDash = document.getElementById('vistaDashboard');
 
             const btnK = document.getElementById('btnModoKiosco');
             const btnP = document.getElementById('btnModoPermisos');
+            const btnPor = document.getElementById('btnModoPorteria');
             const btnT = document.getElementById('btnModoToece');
 
-            const claseActiva = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
-            const claseInactiva = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
+            const claseActiva = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
+            const claseInactiva = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
 
             vKiosco.classList.add('hidden');
             vPerm.classList.add('hidden');
+            vPort.classList.add('hidden');
             vLogin.classList.add('hidden');
             vDash.classList.add('hidden');
 
             btnK.className = claseInactiva;
             btnP.className = claseInactiva;
+            btnPor.className = claseInactiva;
             btnT.className = claseInactiva;
 
             if (modo === 'kiosco') {
                 vKiosco.classList.remove('hidden');
                 btnK.className = claseActiva;
                 setTimeout(() => document.getElementById('inputDniQr').focus(), 100);
+            } else if (modo === 'porteria') {
+                vPort.classList.remove('hidden');
+                btnPor.className = claseActiva;
+                setTimeout(() => document.getElementById('inputDniPorteria').focus(), 100);
             } else if (modo === 'permisos') {
                 btnP.className = claseActiva;
                 if (tokenJWT && usuarioActual) {
@@ -2548,6 +2650,10 @@
 
             tbody.innerHTML = filtrados.map(p => {
                 const nombreSeguro = `${p.apellidos}, ${p.nombres}`.replace(/'/g, "\\'");
+                const badgePorteria = p.verificado_porteria
+                    ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9.5px] font-extrabold">🚪 Salió (${p.hora_verificacion || ''})</span>`
+                    : `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 text-[9.5px] font-bold">⏳ Pendiente en puerta</span>`;
+
                 return `
                     <tr class="hover:bg-sky-50/40">
                         <td class="py-2.5 px-3 font-mono font-bold text-sky-800">${p.hora_salida}</td>
@@ -2555,6 +2661,7 @@
                         <td class="py-2.5 px-3">
                             <p class="font-bold text-slate-900">${p.apellidos}, ${p.nombres}</p>
                             <p class="text-[10px] text-slate-400">Autorizó: ${p.autorizado_por || '--'}</p>
+                            ${badgePorteria}
                         </td>
                         <td class="py-2.5 px-3 font-bold text-mercedes-700">5to "${p.seccion}"</td>
                         <td class="py-2.5 px-3">
@@ -2719,6 +2826,141 @@
                 </html>
             `);
             win.document.close();
+        }
+
+        // =====================================================
+        // LÓGICA 9: MÓDULO DE PORTERÍA (VERIFICACIÓN EN PUERTA)
+        // =====================================================
+        async function procesarQrPorteriaManual(e) {
+            e.preventDefault();
+            const input = document.getElementById('inputDniPorteria');
+            const dni = input.value.trim();
+            if (!dni) return;
+            input.value = '';
+            await verificarSalidaEnPorteria(dni);
+            input.focus();
+        }
+
+        async function verificarSalidaEnPorteria(dni) {
+            const tarjeta = document.getElementById('tarjetaResultadoPorteria');
+            const badge = document.getElementById('badgeEstadoPorteria');
+            const nombre = document.getElementById('nombreAlumnoPorteria');
+            const detalle = document.getElementById('detalleAlumnoPorteria');
+            const extra = document.getElementById('infoExtraPorteria');
+
+            try {
+                const res = await fetch(`${API_BASE}/permisos/verificar-porteria`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.tienePermiso && !data.yaUsado) {
+                    reproducirSonido('ok');
+                    tarjeta.className = 'bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-8 text-center shadow-md transition-all';
+                    badge.className = 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-emerald-600 text-white mb-2 shadow-sm';
+                    badge.innerText = `✅ SALIDA AUTORIZADA • ${data.hora_verificacion}`;
+                    nombre.innerText = data.alumno;
+                    detalle.innerText = `DNI: ${data.dni} • 5to Secundaria - Sección "${data.seccion}"`;
+                    extra.innerHTML = `
+                        <p><strong>📌 Motivo:</strong> ${data.motivo}</p>
+                        ${data.detalle ? `<p><strong>💬 Observación:</strong> ${data.detalle}</p>` : ''}
+                        <p><strong>👮 Autorizado por:</strong> ${data.autorizado_por || 'Auxiliar'} (a las ${data.hora_autorizacion})</p>
+                    `;
+                    extra.classList.remove('hidden');
+
+                    historialLocalPorteria.unshift({ ...data, permitido: true, hora: data.hora_verificacion });
+                    renderizarHistorialPorteria();
+                } else if (res.status === 409 && data.yaUsado) {
+                    reproducirSonido('error');
+                    tarjeta.className = 'bg-amber-50 border-2 border-amber-500 rounded-2xl p-8 text-center shadow-md transition-all';
+                    badge.className = 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 mb-2 shadow-sm';
+                    badge.innerText = '⚠️ PERMISO YA UTILIZADO EN PUERTA';
+                    nombre.innerText = data.alumno || `DNI: ${dni}`;
+                    detalle.innerText = `DNI: ${data.dni} • 5to "${data.seccion}"`;
+                    extra.innerHTML = `
+                        <p class="text-amber-900 font-bold">${data.error}</p>
+                        <p><strong>📌 Motivo previo:</strong> ${data.motivo} (Autorizado por: ${data.autorizado_por})</p>
+                    `;
+                    extra.classList.remove('hidden');
+
+                    historialLocalPorteria.unshift({ ...data, permitido: false, estadoLabel: 'YA USADO', hora: data.hora_verificacion });
+                    renderizarHistorialPorteria();
+                } else {
+                    reproducirSonido('error');
+                    tarjeta.className = 'bg-rose-50 border-2 border-rose-500 rounded-2xl p-8 text-center shadow-md transition-all';
+                    badge.className = 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-rose-600 text-white mb-2 shadow-sm';
+                    badge.innerText = '⛔ NO TIENE PERMISO DE SALIDA';
+                    nombre.innerText = data.alumno || `DNI: ${dni}`;
+                    detalle.innerText = data.error || 'El estudiante no cuenta con permiso de salida autorizado hoy.';
+                    extra.classList.add('hidden');
+
+                    if (data.alumno) {
+                        historialLocalPorteria.unshift({ ...data, permitido: false, estadoLabel: 'SIN PERMISO', hora: data.hora_consulta || '--:--:--' });
+                        renderizarHistorialPorteria();
+                    }
+                }
+            } catch (err) {
+                reproducirSonido('error');
+                detalle.innerText = 'Error de conexión con el servidor.';
+            }
+        }
+
+        function renderizarHistorialPorteria() {
+            const cont = document.getElementById('listaUltimasPorteria');
+            document.getElementById('contadorPorteriaLocal').innerText = `${historialLocalPorteria.length} verificaciones`;
+            cont.innerHTML = historialLocalPorteria.slice(0, 15).map(item => `
+                <div class="py-2.5 px-2 flex items-center justify-between hover:bg-slate-50 rounded-lg">
+                    <div>
+                        <p class="font-bold text-slate-800 text-xs">${item.alumno}</p>
+                        <p class="text-[11px] text-slate-500">DNI: ${item.dni} • 5to "${item.seccion}" ${item.motivo ? `• ${item.motivo}` : ''}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${item.permitido ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'}">
+                            ${item.permitido ? 'AUTORIZADO' : (item.estadoLabel || 'DENEGADO')}
+                        </span>
+                        <p class="text-[11px] font-mono font-semibold text-slate-500 mt-0.5">${item.hora || ''}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function alternarCamaraPorteriaQR() {
+            const cont = document.getElementById('contenedorCamaraPorteria');
+            const btn = document.getElementById('btnToggleCamaraPorteria');
+
+            if (!camaraPorteriaActiva) {
+                cont.classList.remove('hidden');
+                html5QrPorteriaScanner = new Html5Qrcode("readerQrPorteria");
+                try {
+                    let ultimoDniPorteriaLeido = '';
+                    await html5QrPorteriaScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 220, height: 220 } },
+                        (decodedText) => {
+                            const limpio = decodedText.trim();
+                            if (/^\d{8}$/.test(limpio) && limpio !== ultimoDniPorteriaLeido) {
+                                ultimoDniPorteriaLeido = limpio;
+                                verificarSalidaEnPorteria(limpio);
+                                setTimeout(() => { ultimoDniPorteriaLeido = ''; }, 3500);
+                            }
+                        }
+                    );
+                    camaraPorteriaActiva = true;
+                    btn.innerHTML = '<i data-lucide="camera-off" class="w-3.5 h-3.5 text-rose-600"></i><span>Detener Cámara</span>';
+                    lucide.createIcons();
+                } catch (e) {
+                    alert('No se pudo acceder a la cámara web.');
+                    cont.classList.add('hidden');
+                }
+            } else {
+                if (html5QrPorteriaScanner) await html5QrPorteriaScanner.stop();
+                cont.classList.add('hidden');
+                camaraPorteriaActiva = false;
+                btn.innerHTML = '<i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-600"></i><span>Activar Cámara</span>';
+                lucide.createIcons();
+            }
         }
     </script>
 

@@ -63,6 +63,8 @@ async function inicializarBaseDeDatos() {
                 motivo VARCHAR(100) NOT NULL,
                 detalle VARCHAR(255) DEFAULT NULL,
                 autorizado_por VARCHAR(50) DEFAULT NULL,
+                verificado_porteria TINYINT(1) NOT NULL DEFAULT 0,
+                hora_verificacion TIME DEFAULT NULL,
                 creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_permiso_fecha (fecha),
                 INDEX idx_permiso_estudiante (estudiante_id, fecha),
@@ -71,6 +73,13 @@ async function inicializarBaseDeDatos() {
                     ON DELETE CASCADE ON UPDATE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
+
+        const [colsPermVerif] = await pool.query("SHOW COLUMNS FROM PermisoSalida LIKE 'verificado_porteria'");
+        if (colsPermVerif.length === 0) {
+            await pool.query("ALTER TABLE PermisoSalida ADD COLUMN verificado_porteria TINYINT(1) NOT NULL DEFAULT 0 AFTER autorizado_por");
+            await pool.query("ALTER TABLE PermisoSalida ADD COLUMN hora_verificacion TIME DEFAULT NULL AFTER verificado_porteria");
+            console.log("✅ [DB Mig] Columnas de verificación de portería añadidas a PermisoSalida.");
+        }
 
         // 3. Crear / asegurar los perfiles requeridos con sus credenciales oficiales
         const salt = await bcrypt.genSalt(10);

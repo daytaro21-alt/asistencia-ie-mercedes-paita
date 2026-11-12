@@ -157,6 +157,7 @@ const listarPermisosSalida = async (req, res) => {
 
         let sql = `
             SELECT p.id_permiso, p.fecha, p.hora_salida, p.motivo, p.detalle, p.autorizado_por,
+                   COALESCE(p.verificado_porteria, 0) AS verificado_porteria, p.hora_verificacion,
                    e.dni, e.nombres, e.apellidos, e.grado, e.seccion
             FROM PermisoSalida p
             INNER JOIN Estudiante e ON p.estudiante_id = e.id_estudiante
@@ -208,9 +209,122 @@ const eliminarPermisoSalida = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/permisos/verificar-porteria
+ * Escaneo rápido del Portero en puerta para comprobar si el estudiante tiene permiso de salida hoy.
+ */
+const verificarPermisoPorteria = async (req, res) => {
+    const dni = String(req.body?.dni || '').trim();
+    if (!/^\d{8}$/.test(dni)) {
+        return res.status(400).json({ error: 'DNI inválido. El código QR debe tener 8 dígitos.' });
+    }
+
+    try {
+        const [estudiantes] = await pool.query(
+            `SELECT id_estudiante, dni, nombres, apellidos, grado, seccion,
+                    COALESCE(estado_matricula, 'DEFINITIVA') AS estado_matricula
+             FROM Estudiante WHERE dni = ?`,
+            [dni]
+        );
+
+        if (estudiantes.length === 0) {
+            return res.status(404).json({
+                tienePermiso: false,
+                error: 'Estudiante no encontrado en el padrón de 5to de Secundaria.'
+            });
+        }
+
+        const est = estudiantes[0];
+        const nombreCompleto = `${est.apellidos}, ${est.nombres}`;
+
+        if (est.estado_matricula !== 'DEFINITIVA') {
+            return res.status(403).json({
+                tienePermiso: false,
+                alumno: nombreCompleto,
+                dni: est.dni,
+                seccion: est.seccion,
+                error: `Estudiante dado de baja (${est.estado_matricula}).`
+            });
+        }
+
+        const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
+
+        const [permisos] = await pool.query(
+            `SELECT id_permiso, hora_salida, motivo, detalle, autorizado_por,
+                    COALESCE(verificado_porteria, 0) AS verificado_porteria, hora_verificacion
+             FROM PermisoSalida
+             WHERE estudiante_id = ? AND fecha = ?
+             ORDER BY id_permiso DESC`,
+            [est.id_estudiante, fechaSQL]
+        );
+
+        if (permisos.length === 0) {
+            return res.status(404).json({
+                tienePermiso: false,
+                alumno: nombreCompleto,
+                dni: est.dni,
+                grado: est.grado,
+                seccion: est.seccion,
+                fecha: fechaSQL,
+                hora_consulta: horaSQL,
+                error: 'NO TIENE PERMISO DE SALIDA AUTORIZADO HOY.'
+            });
+        }
+
+        // Busca el permiso pendiente más reciente; si todos ya fueron usados, toma el último
+        const permisoPendiente = permisos.find(p => !p.verificado_porteria);
+
+        if (!permisoPendiente) {
+            const ultimo = permisos[0];
+            return res.status(409).json({
+                tienePermiso: true,
+                yaUsado: true,
+                alumno: nombreCompleto,
+                dni: est.dni,
+                grado: est.grado,
+                seccion: est.seccion,
+                motivo: ultimo.motivo,
+                detalle: ultimo.detalle,
+                autorizado_por: ultimo.autorizado_por,
+                hora_autorizacion: ultimo.hora_salida,
+                hora_verificacion: ultimo.hora_verificacion,
+                error: `ESTE PERMISO YA FUE USADO EN PORTERÍA A LAS ${ultimo.hora_verificacion}.`
+            });
+        }
+
+        // Marcar salida verificada en portería
+        await pool.query(
+            'UPDATE PermisoSalida SET verificado_porteria = 1, hora_verificacion = ? WHERE id_permiso = ?',
+            [horaSQL, permisoPendiente.id_permiso]
+        );
+
+        console.log(`🛡️ [Portería] Salida verificada: ${nombreCompleto} (5to "${est.seccion}") | Motivo: ${permisoPendiente.motivo} | Hora: ${horaSQL}`);
+
+        return res.status(200).json({
+            tienePermiso: true,
+            yaUsado: false,
+            mensaje: 'SALIDA AUTORIZADA',
+            alumno: nombreCompleto,
+            dni: est.dni,
+            grado: est.grado,
+            seccion: est.seccion,
+            fecha: fechaSQL,
+            motivo: permisoPendiente.motivo,
+            detalle: permisoPendiente.detalle,
+            autorizado_por: permisoPendiente.autorizado_por,
+            hora_autorizacion: permisoPendiente.hora_salida,
+            hora_verificacion: horaSQL
+        });
+    } catch (error) {
+        console.error('❌ Error en verificación de portería:', error);
+        return res.status(500).json({ error: 'Error interno al verificar permiso en portería.' });
+    }
+};
+
 module.exports = {
     buscarEstudiantePorQrPermiso,
     registrarPermisoSalida,
     listarPermisosSalida,
-    eliminarPermisoSalida
+    eliminarPermisoSalida,
+    verificarPermisoPorteria
 };

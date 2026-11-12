@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS PermisoSalida (
     motivo VARCHAR(100) NOT NULL,
     detalle VARCHAR(255) DEFAULT NULL,
     autorizado_por VARCHAR(50) DEFAULT NULL,
+    verificado_porteria TINYINT(1) NOT NULL DEFAULT 0,
+    hora_verificacion TIME DEFAULT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_permiso_fecha (fecha),
     INDEX idx_permiso_estudiante (estudiante_id, fecha),

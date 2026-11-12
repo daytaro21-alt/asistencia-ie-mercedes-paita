@@ -20,7 +20,8 @@ const {
     buscarEstudiantePorQrPermiso,
     registrarPermisoSalida,
     listarPermisosSalida,
-    eliminarPermisoSalida
+    eliminarPermisoSalida,
+    verificarPermisoPorteria
 } = require('../controllers/permisos.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
@@ -34,6 +35,9 @@ router.post('/auth/login', login);
 
 // Escáner QR en portón (12:30 - 12:45 Puntual | 12:45:01 - 13:30 Tardanza)
 router.post('/registrar-asistencia', registrarAsistenciaQR);
+
+// Escáner QR de Portería (verificar si el alumno tiene permiso de salida autorizado hoy)
+router.post('/permisos/verificar-porteria', verificarPermisoPorteria);
 
 // ==========================================
 // 2. RUTAS PARA TODOS LOS PERFILES (Auxiliar, TOECE, Administracion)
