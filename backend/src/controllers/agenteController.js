@@ -114,9 +114,13 @@ async function generarReporteRespaldoSQL(mensajeUsuario, fechaContextual) {
                lineas.join('\n');
     }
 
-    // Caso 2: Consulta de Faltas, Tardanzas o Puntuales nominales
+    // Caso 2: Consulta de Faltas, Tardanzas (incl. Justificadas) o Puntuales nominales
     let estadoFiltro = undefined;
-    if (texto.includes('falta') || texto.includes('inasistencia') || texto.includes('ausente')) {
+    if ((texto.includes('falta') || texto.includes('inasistencia')) && texto.includes('justificad')) {
+        estadoFiltro = 'Falta Justificada';
+    } else if ((texto.includes('tarde') || texto.includes('tardanza')) && texto.includes('justificad')) {
+        estadoFiltro = 'Tardanza Justificada';
+    } else if (texto.includes('falta') || texto.includes('inasistencia') || texto.includes('ausente')) {
         estadoFiltro = 'Falta';
     } else if (texto.includes('tarde') || texto.includes('tardanza')) {
         estadoFiltro = 'Tardanza';

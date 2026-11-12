@@ -236,12 +236,18 @@ const obtenerResumenDashboard = async (req, res) => {
         sqlEstados += ' GROUP BY a.estado';
         const [conteos] = await pool.query(sqlEstados, paramsEstados);
 
-        const metricas = { Puntual: 0, Tardanza: 0, Falta: 0 };
+        const metricas = {
+            Puntual: 0,
+            Tardanza: 0,
+            'Tardanza Justificada': 0,
+            Falta: 0,
+            'Falta Justificada': 0
+        };
         conteos.forEach(c => {
             if (metricas[c.estado] !== undefined) metricas[c.estado] = Number(c.cantidad);
         });
 
-        const registrados = metricas.Puntual + metricas.Tardanza + metricas.Falta;
+        const registrados = metricas.Puntual + metricas.Tardanza + metricas['Tardanza Justificada'] + metricas.Falta + metricas['Falta Justificada'];
         const sinRegistro = Math.max(0, totalEstudiantes - registrados);
 
         // 3. Listado completo del padrón activo cruzado con su asistencia del día
@@ -250,7 +256,8 @@ const obtenerResumenDashboard = async (req, res) => {
                    e.telefono_apoderado, e.hora_limite_puntual,
                    ? AS fecha,
                    COALESCE(a.hora_ingreso, '--:--:--') AS hora_ingreso,
-                   COALESCE(a.estado, 'Sin Registro') AS estado
+                   COALESCE(a.estado, 'Sin Registro') AS estado,
+                   a.observacion
             FROM Estudiante e
             LEFT JOIN Asistencia a ON e.id_estudiante = a.estudiante_id AND a.fecha = ?
             WHERE COALESCE(e.estado_matricula, 'DEFINITIVA') = 'DEFINITIVA'
@@ -281,7 +288,9 @@ const obtenerResumenDashboard = async (req, res) => {
                 totalPadron: totalEstudiantes,
                 puntuales: metricas.Puntual,
                 tardanzas: metricas.Tardanza,
+                tardanzasJustificadas: metricas['Tardanza Justificada'],
                 faltas: metricas.Falta,
+                faltasJustificadas: metricas['Falta Justificada'],
                 pendientes: sinRegistro,
                 bajas: totalBajas
             },
@@ -801,7 +810,7 @@ const exportarReporteConsolidadoExcel = async (req, res) => {
             const [, m, d] = f.split('-');
             headers.push(`${d}/${m}`);
         });
-        headers.push('TOTAL PUNTUAL', 'TOTAL TARDANZA', 'TOTAL FALTA', '% ASISTENCIA');
+        headers.push('TOTAL PUNTUAL', 'TOTAL TARDANZA', 'TARD. JUSTIF.', 'TOTAL FALTA', 'FALTA JUSTIF.', '% ASISTENCIA');
         filasExcel.push(headers);
 
         // Filas por alumno
@@ -809,7 +818,9 @@ const exportarReporteConsolidadoExcel = async (req, res) => {
             const mapaEst = mapaAsis.get(est.id_estudiante) || new Map();
             let cPuntual = 0;
             let cTardanza = 0;
+            let cTardanzaJust = 0;
             let cFalta = 0;
+            let cFaltaJust = 0;
 
             const fila = [
                 idx + 1,
@@ -826,19 +837,25 @@ const exportarReporteConsolidadoExcel = async (req, res) => {
                 } else if (st === 'Tardanza') {
                     fila.push('T');
                     cTardanza++;
+                } else if (st === 'Tardanza Justificada') {
+                    fila.push('TJ');
+                    cTardanzaJust++;
                 } else if (st === 'Falta') {
                     fila.push('F');
                     cFalta++;
+                } else if (st === 'Falta Justificada') {
+                    fila.push('FJ');
+                    cFaltaJust++;
                 } else {
                     fila.push('-');
                 }
             });
 
-            const asistieron = cPuntual + cTardanza;
-            const totalDiasValidados = cPuntual + cTardanza + cFalta;
+            const asistieron = cPuntual + cTardanza + cTardanzaJust;
+            const totalDiasValidados = cPuntual + cTardanza + cTardanzaJust + cFalta + cFaltaJust;
             const pct = totalDiasValidados > 0 ? `${Math.round((asistieron / totalDiasValidados) * 100)}%` : '0%';
 
-            fila.push(cPuntual, cTardanza, cFalta, pct);
+            fila.push(cPuntual, cTardanza, cTardanzaJust, cFalta, cFaltaJust, pct);
             filasExcel.push(fila);
         });
 
@@ -850,7 +867,7 @@ const exportarReporteConsolidadoExcel = async (req, res) => {
         // Ajustar anchos de columnas
         const colWidths = [{ wch: 4 }, { wch: 10 }, { wch: 34 }, { wch: 6 }];
         fechasRango.forEach(() => colWidths.push({ wch: 6 }));
-        colWidths.push({ wch: 14 }, { wch: 15 }, { wch: 13 }, { wch: 14 });
+        colWidths.push({ wch: 14 }, { wch: 15 }, { wch: 14 }, { wch: 13 }, { wch: 14 }, { wch: 14 });
         ws['!cols'] = colWidths;
 
         const nombreHoja = seccionFiltro ? `5to_${seccionFiltro}` : 'Consolidado_5to';
@@ -892,10 +909,64 @@ const iniciarProgramadorCierrePorton = () => {
     }, 30000);
 };
 
+/**
+ * PUT /api/asistencia/corregir
+ * Permite al Auxiliar, TOECE o Administración justificar Tardanzas/Faltas o corregir el estado del día.
+ */
+const corregirEstadoAsistencia = async (req, res) => {
+    const ESTADOS_VALIDOS = ['Puntual', 'Tardanza', 'Tardanza Justificada', 'Falta', 'Falta Justificada'];
+    try {
+        const { id_asistencia, dni, fecha, estado, observacion } = req.body || {};
+
+        if (!estado || !ESTADOS_VALIDOS.includes(estado)) {
+            return res.status(400).json({ error: 'Estado de asistencia inválido.' });
+        }
+
+        const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
+        const fechaObjetivo = fecha || fechaSQL;
+        const obsLimpia = observacion ? String(observacion).trim().slice(0, 255) : null;
+
+        if (id_asistencia) {
+            const [resUpd] = await pool.query(
+                'UPDATE Asistencia SET estado = ?, observacion = ? WHERE id_asistencia = ?',
+                [estado, obsLimpia, id_asistencia]
+            );
+            if (resUpd.affectedRows === 0) {
+                return res.status(404).json({ error: 'Registro de asistencia no encontrado.' });
+            }
+        } else {
+            if (!dni || !/^\d{8}$/.test(String(dni).trim())) {
+                return res.status(400).json({ error: 'Se requiere id_asistencia o DNI válido para corregir.' });
+            }
+            const [ests] = await pool.query('SELECT id_estudiante FROM Estudiante WHERE dni = ?', [String(dni).trim()]);
+            if (ests.length === 0) {
+                return res.status(404).json({ error: 'Estudiante no encontrado.' });
+            }
+            await pool.query(
+                `INSERT INTO Asistencia (estudiante_id, fecha, hora_ingreso, estado, observacion)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE estado = VALUES(estado), observacion = VALUES(observacion)`,
+                [ests[0].id_estudiante, fechaObjetivo, horaSQL, estado, obsLimpia]
+            );
+        }
+
+        console.log(`📝 [Corrección Asistencia] Usuario "${req.usuario?.username}" (${req.usuario?.rol}) actualizó DNI/ID (${dni || id_asistencia}) -> ${estado}${obsLimpia ? ` (${obsLimpia})` : ''}`);
+        return res.status(200).json({
+            mensaje: `Asistencia actualizada a "${estado}".`,
+            estado,
+            observacion: obsLimpia
+        });
+    } catch (error) {
+        console.error('❌ Error al corregir asistencia:', error);
+        return res.status(500).json({ error: 'Error interno al corregir el estado de asistencia.' });
+    }
+};
+
 module.exports = {
     registrarAsistenciaQR,
     cerrarPortonManual,
     obtenerResumenDashboard,
+    corregirEstadoAsistencia,
     listarEstudiantes,
     actualizarTelefonoApoderado,
     crearEstudiante,

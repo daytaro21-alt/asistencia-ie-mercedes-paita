@@ -69,11 +69,11 @@ async function consultarTardanzas(grado, seccion, fecha, estado) {
         `;
         const params = [fechaConsulta];
 
-        if (estado && ['Tardanza', 'Falta', 'Puntual'].includes(estado)) {
+        if (estado && ['Tardanza', 'Tardanza Justificada', 'Falta', 'Falta Justificada', 'Puntual'].includes(estado)) {
             query += ` AND a.estado = ?`;
             params.push(estado);
         } else {
-            query += ` AND a.estado IN ('Tardanza', 'Falta')`;
+            query += ` AND a.estado IN ('Tardanza', 'Tardanza Justificada', 'Falta', 'Falta Justificada')`;
         }
 
         if (grado && grado.trim() !== '') {
@@ -116,8 +116,10 @@ async function obtenerEstadisticasAsistencia(fecha) {
                 e.seccion,
                 COUNT(e.id_estudiante) AS total_alumnos,
                 SUM(CASE WHEN a.estado = 'Puntual' THEN 1 ELSE 0 END) AS puntuales,
-                SUM(CASE WHEN a.estado = 'Tardanza' THEN 1 ELSE 0 END) AS tardanzas,
-                SUM(CASE WHEN a.estado = 'Falta' THEN 1 ELSE 0 END) AS faltas,
+                SUM(CASE WHEN a.estado IN ('Tardanza', 'Tardanza Justificada') THEN 1 ELSE 0 END) AS tardanzas,
+                SUM(CASE WHEN a.estado = 'Tardanza Justificada' THEN 1 ELSE 0 END) AS tardanzas_justificadas,
+                SUM(CASE WHEN a.estado IN ('Falta', 'Falta Justificada') THEN 1 ELSE 0 END) AS faltas,
+                SUM(CASE WHEN a.estado = 'Falta Justificada' THEN 1 ELSE 0 END) AS faltas_justificadas,
                 SUM(CASE WHEN a.id_asistencia IS NULL THEN 1 ELSE 0 END) AS sin_registro
              FROM Estudiante e
              LEFT JOIN Asistencia a ON e.id_estudiante = a.estudiante_id AND a.fecha = ?

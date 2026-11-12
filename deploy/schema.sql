@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS Asistencia (
     estudiante_id INT NOT NULL,
     fecha DATE NOT NULL,
     hora_ingreso TIME NOT NULL,
-    estado ENUM('Puntual', 'Tardanza', 'Falta') NOT NULL,
+    estado VARCHAR(35) NOT NULL,
+    observacion VARCHAR(255) DEFAULT NULL,
     UNIQUE KEY uk_estudiante_fecha (estudiante_id, fecha),
     INDEX idx_fecha_estado (fecha, estado),
     CONSTRAINT fk_asistencia_estudiante

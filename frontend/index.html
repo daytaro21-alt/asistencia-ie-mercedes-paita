@@ -328,12 +328,12 @@
             <div onclick="filtrarPorEstadoRapido('Tardanza')" class="cursor-pointer hover:ring-2 hover:ring-amber-500 transition bg-white border border-slate-200 border-b-4 border-b-amber-500 rounded-xl p-4 shadow-sm">
                 <p class="text-xs font-bold uppercase text-amber-700">Tardanzas (>12:45)</p>
                 <p id="kpiTardanzas" class="text-2xl font-extrabold text-amber-600 mt-1">0</p>
-                <p class="text-[10px] text-amber-600/80 mt-0.5">Llegaron tarde</p>
+                <p id="kpiTardanzasJustSub" class="text-[10px] text-amber-600/80 mt-0.5">Llegaron tarde</p>
             </div>
             <div onclick="filtrarPorEstadoRapido('Falta')" class="cursor-pointer hover:ring-2 hover:ring-rose-500 transition bg-white border border-slate-200 border-b-4 border-b-rose-600 rounded-xl p-4 shadow-sm">
                 <p class="text-xs font-bold uppercase text-rose-700">Faltaron (Inasist.)</p>
                 <p id="kpiFaltas" class="text-2xl font-extrabold text-rose-600 mt-1">0</p>
-                <p class="text-[10px] text-rose-600/80 mt-0.5">Faltas registradas</p>
+                <p id="kpiFaltasJustSub" class="text-[10px] text-rose-600/80 mt-0.5">Faltas registradas</p>
             </div>
             <div onclick="filtrarPorEstadoRapido('Sin Registro')" class="cursor-pointer hover:ring-2 hover:ring-slate-400 transition col-span-2 sm:col-span-1 bg-white border border-slate-200 border-b-4 border-b-slate-400 rounded-xl p-4 shadow-sm">
                 <p class="text-xs font-bold uppercase text-slate-500">Sin Registro Aún</p>
@@ -410,9 +410,17 @@
                                 class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-amber-800 border border-amber-200 hover:bg-amber-50 transition">
                                 🟡 Llegaron Tarde
                             </button>
+                            <button type="button" onclick="filtrarPorEstadoRapido('Tardanza Justificada')" id="pill_Tardanza Justificada"
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-sky-800 border border-sky-200 hover:bg-sky-50 transition">
+                                🔵 Tard. Justif.
+                            </button>
                             <button type="button" onclick="filtrarPorEstadoRapido('Falta')" id="pill_Falta"
                                 class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-rose-800 border border-rose-200 hover:bg-rose-50 transition">
                                 🔴 Faltaron
+                            </button>
+                            <button type="button" onclick="filtrarPorEstadoRapido('Falta Justificada')" id="pill_Falta Justificada"
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-purple-800 border border-purple-200 hover:bg-purple-50 transition">
+                                🟣 Falta Justif.
                             </button>
                             <button type="button" onclick="filtrarPorEstadoRapido('Sin Registro')" id="pill_Sin Registro"
                                 class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition">
@@ -434,10 +442,11 @@
                                     <th class="py-2.5 px-3 font-bold">Estudiante</th>
                                     <th class="py-2.5 px-3 font-bold">Sec.</th>
                                     <th class="py-2.5 px-3 font-bold">Estado</th>
+                                    <th class="py-2.5 px-3 font-bold text-right">Corregir / Justificar</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaRegistrosDia" class="divide-y divide-slate-200">
-                                <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando registros...</td></tr>
+                                <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando registros...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1146,6 +1155,15 @@
                 document.getElementById('kpiFaltas').innerText = data.metricas.faltas;
                 document.getElementById('kpiPendientes').innerText = data.metricas.pendientes;
 
+                const tardJust = Number(data.metricas.tardanzasJustificadas || 0);
+                const faltJust = Number(data.metricas.faltasJustificadas || 0);
+                document.getElementById('kpiTardanzasJustSub').innerText = tardJust > 0
+                    ? `+ ${tardJust} justificada(s)`
+                    : 'Llegaron tarde';
+                document.getElementById('kpiFaltasJustSub').innerText = faltJust > 0
+                    ? `+ ${faltJust} justificada(s)`
+                    : 'Faltas registradas';
+
                 padronDiaCache = data.padronDia || data.registros || [];
                 renderizarTablaMonitoreo();
             } catch (e) {
@@ -1160,7 +1178,7 @@
                 cambiarSubTab('monitoreo');
             }
 
-            const estadosBotones = ['TODOS_PADRON', 'ASISTIERON', 'Puntual', 'Tardanza', 'Falta', 'Sin Registro'];
+            const estadosBotones = ['TODOS_PADRON', 'ASISTIERON', 'Puntual', 'Tardanza', 'Tardanza Justificada', 'Falta', 'Falta Justificada', 'Sin Registro'];
             estadosBotones.forEach(est => {
                 const btn = document.getElementById(`pill_${est}`);
                 if (!btn) return;
@@ -1180,7 +1198,7 @@
 
             const filtrados = padronDiaCache.filter(r => {
                 if (filtroEstadoActual === 'ASISTIERON') {
-                    if (r.estado !== 'Puntual' && r.estado !== 'Tardanza') return false;
+                    if (r.estado !== 'Puntual' && r.estado !== 'Tardanza' && r.estado !== 'Tardanza Justificada') return false;
                 } else if (filtroEstadoActual !== 'TODOS_PADRON') {
                     if (r.estado !== filtroEstadoActual) return false;
                 }
@@ -1194,7 +1212,7 @@
             });
 
             if (filtrados.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400">No hay estudiantes para el filtro seleccionado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No hay estudiantes para el filtro seleccionado.</td></tr>';
                 return;
             }
 
@@ -1202,26 +1220,111 @@
                 let badgeColor = 'bg-slate-100 text-slate-600 border-slate-300';
                 if (r.estado === 'Puntual') badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
                 else if (r.estado === 'Tardanza') badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                else if (r.estado === 'Tardanza Justificada') badgeColor = 'bg-sky-100 text-sky-800 border-sky-300';
                 else if (r.estado === 'Falta') badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+                else if (r.estado === 'Falta Justificada') badgeColor = 'bg-purple-100 text-purple-800 border-purple-300';
 
                 const badgePermiso = r.hora_limite_puntual
                     ? '<span class="ml-1.5 inline-block px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 text-[9.5px] font-extrabold">🕐 Permiso 1:00 PM</span>'
                     : '';
 
+                const obsHtml = r.observacion
+                    ? `<p class="text-[10px] text-slate-500 font-normal mt-0.5 italic">💬 ${r.observacion}</p>`
+                    : '';
+
+                const nombreSeguro = `${r.apellidos}, ${r.nombres}`.replace(/'/g, "\\'");
+                const obsSeguro = (r.observacion || '').replace(/'/g, "\\'");
+                let botonAccion = '';
+
+                if (r.estado === 'Tardanza') {
+                    botonAccion = `
+                        <button type="button" onclick="abrirModalJustificar(${r.id_asistencia || 'null'}, '${r.dni}', '${nombreSeguro}', '${r.estado}', 'Tardanza Justificada', '${obsSeguro}')"
+                            class="bg-sky-50 hover:bg-sky-600 text-sky-800 hover:text-white border border-sky-300 px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition shadow-sm">
+                            📝 Justificar Tardanza
+                        </button>`;
+                } else if (r.estado === 'Falta') {
+                    botonAccion = `
+                        <button type="button" onclick="abrirModalJustificar(${r.id_asistencia || 'null'}, '${r.dni}', '${nombreSeguro}', '${r.estado}', 'Falta Justificada', '${obsSeguro}')"
+                            class="bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white border border-purple-300 px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition shadow-sm">
+                            📝 Justificar Falta
+                        </button>`;
+                } else {
+                    const estadoSugerido = r.estado === 'Sin Registro' ? 'Falta Justificada' : r.estado;
+                    botonAccion = `
+                        <button type="button" onclick="abrirModalJustificar(${r.id_asistencia || 'null'}, '${r.dni}', '${nombreSeguro}', '${r.estado}', '${estadoSugerido}', '${obsSeguro}')"
+                            class="bg-slate-50 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition">
+                            ✏️ Corregir
+                        </button>`;
+                }
+
                 return `
                     <tr class="hover:bg-amber-50/40">
                         <td class="py-2.5 px-3 font-mono font-semibold text-slate-700">${r.hora_ingreso || '--:--:--'}</td>
                         <td class="py-2.5 px-3 font-mono text-slate-500">${r.dni}</td>
-                        <td class="py-2.5 px-3 font-bold text-slate-900">${r.apellidos}, ${r.nombres}${badgePermiso}</td>
+                        <td class="py-2.5 px-3 font-bold text-slate-900">${r.apellidos}, ${r.nombres}${badgePermiso}${obsHtml}</td>
                         <td class="py-2.5 px-3 font-bold text-mercedes-700">5to "${r.seccion}"</td>
                         <td class="py-2.5 px-3">
-                            <span class="px-2 py-0.5 rounded border text-[10px] font-extrabold uppercase ${badgeColor}">
+                            <span class="px-2 py-0.5 rounded border text-[10px] font-extrabold uppercase whitespace-nowrap ${badgeColor}">
                                 ${r.estado}
                             </span>
+                        </td>
+                        <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                            ${botonAccion}
                         </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function abrirModalJustificar(idAsistencia, dni, nombreAlumno, estadoActual, estadoSugerido, observacionActual) {
+            document.getElementById('justifIdAsistencia').value = idAsistencia || '';
+            document.getElementById('justifDni').value = dni;
+            document.getElementById('justifAlumnoNombre').innerText = nombreAlumno;
+            document.getElementById('justifEstadoActual').innerText = estadoActual;
+            document.getElementById('justifNuevoEstado').value = estadoSugerido;
+            document.getElementById('justifObservacion').value = observacionActual || '';
+            document.getElementById('modalJustificarAsistencia').classList.remove('hidden');
+        }
+
+        function cerrarModalJustificar() {
+            document.getElementById('modalJustificarAsistencia').classList.add('hidden');
+        }
+
+        async function guardarJustificacionAsistencia(e) {
+            e.preventDefault();
+            if (!tokenJWT) return;
+
+            const idAsis = document.getElementById('justifIdAsistencia').value;
+            const dni = document.getElementById('justifDni').value;
+            const fecha = document.getElementById('filtroFecha').value;
+            const estado = document.getElementById('justifNuevoEstado').value;
+            const observacion = document.getElementById('justifObservacion').value.trim();
+
+            try {
+                const res = await fetch(`${API_BASE}/asistencia/corregir`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({
+                        id_asistencia: idAsis ? Number(idAsis) : null,
+                        dni,
+                        fecha,
+                        estado,
+                        observacion
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo actualizar la asistencia.');
+                    return;
+                }
+                cerrarModalJustificar();
+                cargarResumenDashboard();
+            } catch (err) {
+                alert('Error de conexión al guardar la corrección.');
+            }
         }
 
         async function ejecutarCierrePortonUI() {
@@ -1544,7 +1647,9 @@
                 'ASISTIERON': 'ESTUDIANTES QUE ASISTIERON (PUNTUALES Y TARDANZAS)',
                 'Puntual': 'ESTUDIANTES PUNTUALES',
                 'Tardanza': 'ESTUDIANTES CON TARDANZA',
+                'Tardanza Justificada': 'ESTUDIANTES CON TARDANZA JUSTIFICADA',
                 'Falta': 'ESTUDIANTES CON FALTA (INASISTENCIA)',
+                'Falta Justificada': 'ESTUDIANTES CON FALTA JUSTIFICADA',
                 'Sin Registro': 'ESTUDIANTES SIN REGISTRO DE INGRESO'
             };
             const tituloFiltro = nombresEstado[filtroEstadoActual] || filtroEstadoActual;
@@ -1552,7 +1657,7 @@
             // Filtrar registros según estado y búsqueda
             const registrosFiltrados = padronDiaCache.filter(r => {
                 if (filtroEstadoActual === 'ASISTIERON') {
-                    if (r.estado !== 'Puntual' && r.estado !== 'Tardanza') return false;
+                    if (r.estado !== 'Puntual' && r.estado !== 'Tardanza' && r.estado !== 'Tardanza Justificada') return false;
                 } else if (filtroEstadoActual !== 'TODOS_PADRON') {
                     if (r.estado !== filtroEstadoActual) return false;
                 }
@@ -1582,16 +1687,28 @@
                 const totSec = alumnosSec.length;
                 const puntSec = alumnosSec.filter(a => a.estado === 'Puntual').length;
                 const tardSec = alumnosSec.filter(a => a.estado === 'Tardanza').length;
+                const tardJustSec = alumnosSec.filter(a => a.estado === 'Tardanza Justificada').length;
                 const faltSec = alumnosSec.filter(a => a.estado === 'Falta').length;
+                const faltJustSec = alumnosSec.filter(a => a.estado === 'Falta Justificada').length;
                 const sinRegSec = alumnosSec.filter(a => a.estado === 'Sin Registro').length;
 
                 const filasSecHTML = alumnosSec.map((r, i) => {
-                    const colorEstado = r.estado === 'Puntual' ? '#047857' : (r.estado === 'Tardanza' ? '#b45309' : (r.estado === 'Falta' ? '#b91c1c' : '#475569'));
+                    let colorEstado = '#475569';
+                    if (r.estado === 'Puntual') colorEstado = '#047857';
+                    else if (r.estado === 'Tardanza') colorEstado = '#b45309';
+                    else if (r.estado === 'Tardanza Justificada') colorEstado = '#0369a1';
+                    else if (r.estado === 'Falta') colorEstado = '#b91c1c';
+                    else if (r.estado === 'Falta Justificada') colorEstado = '#6d28d9';
+
                     return `
                         <tr>
                             <td style="text-align:center;font-weight:bold;">${i + 1}</td>
                             <td style="font-family:monospace;text-align:center;">${r.dni}</td>
-                            <td><strong>${r.apellidos}, ${r.nombres}</strong> ${r.hora_limite_puntual ? '<span style="font-size:9px;color:#0369a1;font-weight:bold;">(Permiso 1:00 PM)</span>' : ''}</td>
+                            <td>
+                                <strong>${r.apellidos}, ${r.nombres}</strong>
+                                ${r.hora_limite_puntual ? '<span style="font-size:9px;color:#0369a1;font-weight:bold;"> (Permiso 1:00 PM)</span>' : ''}
+                                ${r.observacion ? `<div style="font-size:9px;color:#475569;font-style:italic;">Motivo: ${r.observacion}</div>` : ''}
+                            </td>
                             <td style="text-align:center;font-weight:bold;color:#7f091c;">5to "${r.seccion}"</td>
                             <td style="font-family:monospace;text-align:center;">${r.hora_ingreso || '--:--:--'}</td>
                             <td style="text-align:center;font-weight:bold;color:${colorEstado};">${r.estado.toUpperCase()}</td>
@@ -1622,8 +1739,8 @@
                         <div class="kpis">
                             <div class="kpi"><span>Total Sección</span><strong>${totSec}</strong></div>
                             <div class="kpi"><span>Puntuales</span><strong style="color:#047857;">${puntSec}</strong></div>
-                            <div class="kpi"><span>Tardanzas</span><strong style="color:#b45309;">${tardSec}</strong></div>
-                            <div class="kpi"><span>Faltas</span><strong style="color:#b91c1c;">${faltSec}</strong></div>
+                            <div class="kpi"><span>Tardanzas</span><strong style="color:#b45309;">${tardSec}${tardJustSec ? ` (+${tardJustSec}J)` : ''}</strong></div>
+                            <div class="kpi"><span>Faltas</span><strong style="color:#b91c1c;">${faltSec}${faltJustSec ? ` (+${faltJustSec}J)` : ''}</strong></div>
                             <div class="kpi"><span>Sin Registro</span><strong style="color:#475569;">${sinRegSec}</strong></div>
                         </div>
 
@@ -2052,7 +2169,7 @@
                 <div class="bg-amber-50 border border-dorado-300 rounded-xl p-3 text-[11px] text-amber-900 leading-relaxed">
                     💡 <strong>Estructura del archivo Excel generado:</strong><br>
                     • Orden alfabético estricto según nómina oficial de SIAGIE.<br>
-                    • Sábana día por día: <strong>P</strong> (Puntual), <strong>T</strong> (Tardanza), <strong>F</strong> (Falta) y <strong>-</strong> (Sin registro).<br>
+                    • Sábana día por día: <strong>P</strong> (Puntual), <strong>T</strong> (Tardanza), <strong>TJ</strong> (Tard. Justificada), <strong>F</strong> (Falta), <strong>FJ</strong> (Falta Justificada) y <strong>-</strong> (Sin registro).<br>
                     • Totales calculados automáticamente con porcentaje (%) de asistencia mensual.
                 </div>
             </div>
@@ -2067,6 +2184,59 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- MODAL PARA CORREGIR / JUSTIFICAR ASISTENCIA (AUXILIARES / TOECE / ADMIN) -->
+    <div id="modalJustificarAsistencia" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <form onsubmit="guardarJustificacionAsistencia(event)" class="bg-white border-2 border-mercedes-700 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-sm font-extrabold text-mercedes-800 flex items-center gap-2">
+                        📝 Corregir / Justificar Asistencia
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Justifica tardanzas o faltas del estudiante con respaldo en el padrón.</p>
+                </div>
+                <button type="button" onclick="cerrarModalJustificar()" class="text-slate-400 hover:text-rose-600 text-lg font-bold">&times;</button>
+            </div>
+
+            <input type="hidden" id="justifIdAsistencia">
+            <input type="hidden" id="justifDni">
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1">
+                <p class="font-extrabold text-slate-900" id="justifAlumnoNombre">--</p>
+                <p class="text-[11px] text-slate-500">Estado actual: <strong id="justifEstadoActual" class="text-mercedes-700">--</strong></p>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nuevo Estado de Asistencia *</label>
+                    <select id="justifNuevoEstado" required
+                        class="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-bold focus:border-mercedes-600 focus:outline-none">
+                        <option value="Tardanza Justificada">🔵 Tardanza Justificada</option>
+                        <option value="Falta Justificada">🟣 Falta Justificada</option>
+                        <option value="Puntual">🟢 Puntual</option>
+                        <option value="Tardanza">🟡 Tardanza (Sin justificar)</option>
+                        <option value="Falta">🔴 Falta (Sin justificar)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Motivo / Observación (Opcional)</label>
+                    <input type="text" id="justifObservacion" maxlength="200"
+                        placeholder="Ej: Cita médica ESSALUD / Permiso del apoderado..."
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:border-mercedes-600 focus:outline-none">
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="cerrarModalJustificar()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-mercedes-700 hover:bg-mercedes-800 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition">
+                    ✅ Guardar Corrección
+                </button>
+            </div>
+        </form>
     </div>
 </body>
 </html>

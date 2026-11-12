@@ -6,6 +6,7 @@ const {
     registrarAsistenciaQR,
     cerrarPortonManual,
     obtenerResumenDashboard,
+    corregirEstadoAsistencia,
     listarEstudiantes,
     actualizarTelefonoApoderado,
     crearEstudiante,
@@ -33,6 +34,9 @@ router.post('/registrar-asistencia', registrarAsistenciaQR);
 // ==========================================
 // Resumen estadístico y consulta de quiénes faltaron, no faltaron y llegaron tarde
 router.get('/asistencia/resumen', verificarToken, obtenerResumenDashboard);
+
+// Corregir / Justificar asistencia (Tardanza Justificada, Falta Justificada, etc.) para Auxiliares, TOECE y Admin
+router.put('/asistencia/corregir', verificarToken, verificarRol(['Auxiliar', 'TOECE', 'Administracion']), corregirEstadoAsistencia);
 
 // Exportar consolidado semanal / mensual a Excel (.xlsx) con sábana de días y orden alfabético
 router.get('/asistencia/exportar-excel', verificarToken, exportarReporteConsolidadoExcel);

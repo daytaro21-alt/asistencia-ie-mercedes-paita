@@ -40,6 +40,19 @@ async function inicializarBaseDeDatos() {
             console.log("✅ [DB Mig] Columna 'nombre_completo' añadida a la tabla usuario.");
         }
 
+        // 2b. Ampliar columna 'estado' en Asistencia a VARCHAR(35) y añadir 'observacion' para justificaciones
+        const [colsAsisEstado] = await pool.query("SHOW COLUMNS FROM Asistencia LIKE 'estado'");
+        if (colsAsisEstado.length > 0 && colsAsisEstado[0].Type.toLowerCase().startsWith('enum')) {
+            await pool.query("ALTER TABLE Asistencia MODIFY COLUMN estado VARCHAR(35) NOT NULL");
+            console.log("✅ [DB Mig] Columna 'estado' en Asistencia ampliada a VARCHAR(35) (soporta Justificadas).");
+        }
+
+        const [colsAsisObs] = await pool.query("SHOW COLUMNS FROM Asistencia LIKE 'observacion'");
+        if (colsAsisObs.length === 0) {
+            await pool.query("ALTER TABLE Asistencia ADD COLUMN observacion VARCHAR(255) DEFAULT NULL AFTER estado");
+            console.log("✅ [DB Mig] Columna 'observacion' añadida a la tabla Asistencia.");
+        }
+
         // 3. Crear / asegurar los perfiles requeridos con sus credenciales oficiales
         const salt = await bcrypt.genSalt(10);
 
