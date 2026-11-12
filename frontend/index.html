@@ -121,45 +121,12 @@
             </div>
 
             <h2 class="text-xl font-extrabold text-slate-900 mb-1">Control de Ingreso Estudiantil</h2>
-            <div class="bg-amber-50/70 border border-dorado-300 rounded-xl p-3 mb-3 text-xs space-y-1">
+            <div class="bg-amber-50/70 border border-dorado-300 rounded-xl p-3 mb-5 text-xs space-y-1">
                 <p class="font-bold text-mercedes-800 uppercase tracking-wide text-[11px]">Horario Oficial — Turno Tarde:</p>
                 <div class="flex flex-wrap gap-x-3 gap-y-1 text-slate-700">
                     <span>🟢 <strong>12:30 - 12:45:</strong> Puntual</span>
                     <span>🟡 <strong>12:45 - 13:30:</strong> Tardanza</span>
                     <span>🔴 <strong>13:30:</strong> Cierre / Falta</span>
-                </div>
-            </div>
-
-            <!-- Barra de Modo Simulación / Capacitación (para pruebas fuera de horario como a las 4:00 PM) -->
-            <div id="cajaSimulacionKiosco" class="bg-indigo-50 border border-indigo-300 rounded-xl p-3 mb-4 text-xs space-y-2">
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center gap-2 cursor-pointer font-extrabold text-indigo-900">
-                        <input type="checkbox" id="checkModoSimulacion" onchange="toggleModoSimulacionFrontend(this.checked)" class="w-4 h-4 text-indigo-600 rounded">
-                        <span>🧪 Modo Simulación / Capacitación</span>
-                    </label>
-                    <span id="badgeEstadoSimulacion" class="text-[10px] bg-indigo-200 text-indigo-800 font-bold px-2 py-0.5 rounded-full">Pruebas</span>
-                </div>
-                <div id="opcionesSimulacion" class="hidden pt-1 border-t border-indigo-200 space-y-1.5 text-slate-700">
-                    <p class="text-[11px] text-indigo-950 font-semibold">Forzar resultado al escanear (para demostrar ambos casos):</p>
-                    <div class="flex flex-wrap gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="radioSimEstado" value="AUTO" checked class="text-indigo-600">
-                            <span>⚪ Automático</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="radioSimEstado" value="Puntual" class="text-emerald-600">
-                            <span class="text-emerald-800 font-bold">🟢 Simular Puntual</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="radioSimEstado" value="Tardanza" class="text-amber-600">
-                            <span class="text-amber-800 font-bold">🟡 Simular Tardanza</span>
-                        </label>
-                    </div>
-                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-indigo-900 pt-0.5">
-                        <input type="checkbox" id="checkPermitirReescaneo" checked class="rounded text-indigo-600">
-                        <span>Permitir reescanear el mismo carnet varias veces en la demo</span>
-                    </label>
-                    <p class="text-[10px] text-indigo-600 italic">ℹ️ Portón desbloqueado a las 4:00 PM y WhatsApp en modo prueba (sin enviar a padres reales).</p>
                 </div>
             </div>
 
@@ -332,12 +299,6 @@
                     🪪 Imprimir Carnets QR
                 </a>
 
-                <button onclick="limpiarAsistenciaHoyUI()" id="btnLimpiarHoy"
-                    class="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 transition flex items-center gap-1.5" title="Elimina registros de prueba de la fecha actual">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    Limpiar Pruebas Hoy
-                </button>
-
                 <button onclick="ejecutarCierrePortonUI()" id="btnCerrarPorton"
                     class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-mercedes-600 text-mercedes-800 hover:text-white border border-dorado-400 transition flex items-center gap-1.5">
                     <i data-lucide="door-closed" class="w-3.5 h-3.5"></i>
@@ -509,7 +470,7 @@
                             </div>
                         </div>
 
-                        <!-- Barra de Cola y Modo Simulación -->
+                        <!-- Barra de Cola WhatsApp -->
                         <div class="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
                             <div class="flex items-center gap-2">
                                 <span class="bg-amber-100 text-amber-800 font-extrabold px-2.5 py-0.5 rounded-full text-[11px]" id="badgeColaWsp">
@@ -518,15 +479,6 @@
                                 <span class="text-slate-600 text-[11px]" id="textoProximoDespacho">
                                     ⏱️ Cadencia: 1 mensaje cada 20 segundos (Anti-bloqueo de WhatsApp)
                                 </span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span id="badgeModoSimulacionWsp" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                                    Modo Real
-                                </span>
-                                <button type="button" onclick="alternarModoSimulacionUI()"
-                                    class="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline">
-                                    Alternar Simulación
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -904,20 +856,6 @@
             timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
         }).format(new Date());
 
-        // Consultar estado de simulación al cargar
-        fetch(`${API_BASE}/asistencia/modo-simulacion`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && typeof data.modoSimulacion === 'boolean') {
-                    const chk = document.getElementById('checkModoSimulacion');
-                    if (chk) {
-                        chk.checked = data.modoSimulacion;
-                        toggleModoSimulacionFrontend(data.modoSimulacion);
-                    }
-                }
-            })
-            .catch(() => {});
-
         // Beep sintético con Web Audio API para feedback auditivo en el portón
         function reproducirSonido(tipo) {
             try {
@@ -1056,51 +994,17 @@
             input.focus();
         }
 
-        let modoSimulacionFrontend = false;
-
-        function toggleModoSimulacionFrontend(activo) {
-            modoSimulacionFrontend = activo;
-            const opc = document.getElementById('opcionesSimulacion');
-            const badge = document.getElementById('badgeEstadoSimulacion');
-            if (activo) {
-                opc?.classList.remove('hidden');
-                if (badge) {
-                    badge.className = 'text-[10px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-sm animate-pulse';
-                    badge.innerText = 'Activo';
-                }
-            } else {
-                opc?.classList.add('hidden');
-                if (badge) {
-                    badge.className = 'text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-full';
-                    badge.innerText = 'Pruebas';
-                }
-            }
-        }
-
         async function registrarDniEnBackend(dni) {
             const tarjeta = document.getElementById('tarjetaResultadoEscaneo');
             const badge = document.getElementById('badgeEstadoEscaneo');
             const nombre = document.getElementById('nombreAlumnoEscaneo');
             const detalle = document.getElementById('detalleAlumnoEscaneo');
 
-            const payload = { dni };
-            if (modoSimulacionFrontend) {
-                const radios = document.getElementsByName('radioSimEstado');
-                let seleccionado = 'AUTO';
-                for (const r of radios) {
-                    if (r.checked) seleccionado = r.value;
-                }
-                if (seleccionado !== 'AUTO') {
-                    payload.forzarEstado = seleccionado;
-                }
-                payload.permitirReintento = document.getElementById('checkPermitirReescaneo')?.checked || false;
-            }
-
             try {
                 const res = await fetch(`${API_BASE}/registrar-asistencia`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ dni })
                 });
                 const data = await res.json();
 
@@ -1116,8 +1020,7 @@
                         : 'inline-block text-xs font-extrabold uppercase tracking-widest px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 mb-2 shadow-sm';
 
                     const textoPermiso = data.hora_limite_puntual ? ' (Permiso 1:00 PM)' : '';
-                    const etiquetaSim = data.modoSimulacion ? ' [SIMULACIÓN]' : '';
-                    badge.innerText = `${data.estado.toUpperCase()}${textoPermiso}${etiquetaSim} • ${data.hora}`;
+                    badge.innerText = `${data.estado.toUpperCase()}${textoPermiso} • ${data.hora}`;
                     nombre.innerText = data.alumno;
                     detalle.innerText = `DNI: ${data.dni} • 5to Secundaria - Sección "${data.seccion}"`;
 
@@ -1381,33 +1284,6 @@
             }).join('');
         }
 
-        async function limpiarAsistenciaHoyUI() {
-            const fecha = document.getElementById('filtroFecha').value;
-            if (!confirm(`⚠️ ATENCIÓN: ¿Seguro que deseas eliminar TODOS los registros de asistencia de la fecha ${fecha}?\n\nEsta función es para dejar el padrón en 0 tras una sesión de prueba o capacitación.`)) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/asistencia/limpiar-dia`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${tokenJWT}`
-                    },
-                    body: JSON.stringify({ fecha })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    alert(data.error || 'Error al limpiar asistencia del día.');
-                    return;
-                }
-                alert(`✅ ${data.mensaje}`);
-                cargarResumenDashboard();
-            } catch (e) {
-                alert('Error de conexión al limpiar la asistencia.');
-            }
-        }
-
         async function ejecutarCierrePortonUI() {
             const fecha = document.getElementById('filtroFecha').value;
             if (!confirm(`¿Confirmas el Cierre de Portón para la fecha ${fecha}? Todos los alumnos activos de 5to sin registro hoy serán marcados con FALTA y se enviarán las alertas de WhatsApp a sus apoderados.`)) {
@@ -1454,7 +1330,6 @@
                 const imgQr = document.getElementById('imgQrWhatsAppWeb');
                 const badgeCola = document.getElementById('badgeColaWsp');
                 const textoDespacho = document.getElementById('textoProximoDespacho');
-                const badgeSim = document.getElementById('badgeModoSimulacionWsp');
 
                 if (badgeCola) {
                     badgeCola.innerText = `Cola: ${data.colaPendiente || 0} pendientes`;
@@ -1468,19 +1343,10 @@
                     textoDespacho.innerText = `⏱️ Cadencia: 1 mensaje cada ${segs} segundos (Anti-bloqueo)`;
                 }
 
-                if (badgeSim) {
-                    badgeSim.innerText = data.modoSimulacion ? '🧪 Simulación (Pruebas)' : '🟢 Modo Real';
-                    badgeSim.className = data.modoSimulacion
-                        ? 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300'
-                        : 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
-                }
-
                 if (data.conectado) {
                     icono.className = 'w-3 h-3 rounded-full bg-emerald-500';
                     titulo.innerText = '✅ WhatsApp Conectado y Activo';
-                    sub.innerText = data.modoSimulacion
-                        ? 'Servicio listo. MODO SIMULACIÓN ACTIVO: Los mensajes NO se envían a celulares reales.'
-                        : `Servicio listo. Las alertas se despachan en lotes cada ${data.intervaloMinutos || 20} min con pausas anti-bloqueo.`;
+                    sub.innerText = `Servicio listo. Las alertas se envían automáticamente con una pausa de ${data.segundosEntreMensajes || 20} segundos entre cada mensaje.`;
                     cajaQr.classList.add('hidden');
                 } else if (data.qrDataUrl) {
                     icono.className = 'w-3 h-3 rounded-full bg-amber-500 animate-ping';
@@ -1514,30 +1380,6 @@
                 alert('Error al despachar alertas de WhatsApp.');
             } finally {
                 if (btn) btn.disabled = false;
-            }
-        }
-
-        async function alternarModoSimulacionUI() {
-            if (!tokenJWT) return;
-            try {
-                const res = await fetch(`${API_BASE}/asistencia/modo-simulacion`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${tokenJWT}`
-                    }
-                });
-                const data = await res.json();
-                alert(data.mensaje);
-                consultarEstadoWhatsApp();
-                // Sincronizar checkbox del kiosco si está en pantalla
-                const chk = document.getElementById('checkModoSimulacion');
-                if (chk) {
-                    chk.checked = data.modoSimulacion;
-                    toggleModoSimulacionFrontend(data.modoSimulacion);
-                }
-            } catch (e) {
-                alert('Error al cambiar modo simulación.');
             }
         }
 

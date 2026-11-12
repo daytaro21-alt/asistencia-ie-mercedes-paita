@@ -1,7 +1,6 @@
 // src/controllers/asistencia.controller.js
 const pool = require('../config/db');
 const { enviarAlertaWhatsApp } = require('../utils/whatsappService');
-const { esModoSimulacion, establecerModoSimulacion } = require('../config/appConfig');
 const {
     extraerEstudiantesDeBufferExcel,
     normalizarSeccion,
@@ -23,10 +22,10 @@ const obtenerFechaHoraPeru = () => {
 
 /**
  * POST /api/registrar-asistencia
- * Escaneo QR en portón (soporta Modo Simulación para capacitaciones a cualquier hora)
+ * Escaneo QR en portón
  */
 const registrarAsistenciaQR = async (req, res) => {
-    const { dni, forzarEstado, permitirReintento } = req.body;
+    const { dni } = req.body;
 
     if (!dni || !/^\d{8}$/.test(dni.trim())) {
         return res.status(400).json({ error: 'DNI inválido o no proporcionado por el escáner.' });
@@ -57,14 +56,12 @@ const registrarAsistenciaQR = async (req, res) => {
         }
 
         const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
-        const enSimulacion = esModoSimulacion();
 
         // Si el estudiante tiene permiso especial por trabajo (ej. '13:00:00'), se respeta su hora límite
         const horaLimitePuntual = estudiante.hora_limite_puntual || process.env.HORA_LIMITE_PUNTUAL || '12:45:00';
         const horaCierrePorton = process.env.HORA_CIERRE_PORTON || '13:30:00';
 
-        // En Modo Simulación, se ignora el bloqueo de cierre para permitir pruebas en la tarde (ej. 4:00 PM)
-        if (!enSimulacion && process.env.BLOQUEAR_DESPUES_CIERRE === 'true' && horaSQL > horaCierrePorton) {
+        if (process.env.BLOQUEAR_DESPUES_CIERRE === 'true' && horaSQL > horaCierrePorton) {
             return res.status(403).json({
                 error: `El portón cerró a las ${horaCierrePorton}. El estudiante debe pasar por oficina de TOECE.`,
                 alumno: `${estudiante.nombres} ${estudiante.apellidos}`,
@@ -74,13 +71,7 @@ const registrarAsistenciaQR = async (req, res) => {
             });
         }
 
-        // Determinación del estado: permite forzar 'Puntual' o 'Tardanza' en capacitación si se solicita
-        let estadoAsistencia;
-        if (enSimulacion && forzarEstado && ['Puntual', 'Tardanza'].includes(forzarEstado)) {
-            estadoAsistencia = forzarEstado;
-        } else {
-            estadoAsistencia = horaSQL > horaLimitePuntual ? 'Tardanza' : 'Puntual';
-        }
+        const estadoAsistencia = horaSQL > horaLimitePuntual ? 'Tardanza' : 'Puntual';
 
         try {
             await pool.query(
@@ -89,25 +80,14 @@ const registrarAsistenciaQR = async (req, res) => {
             );
         } catch (dbError) {
             if (dbError.code === 'ER_DUP_ENTRY') {
-                // En modo simulación, si se activa permitirReintento, se actualiza el registro existente
-                if (enSimulacion && permitirReintento) {
-                    await pool.query(
-                        'UPDATE Asistencia SET hora_ingreso = ?, estado = ? WHERE estudiante_id = ? AND fecha = ?',
-                        [horaSQL, estadoAsistencia, estudiante.id_estudiante, fechaSQL]
-                    );
-                    console.log(`🧪 [Modo Simulación] Registro reescrito para ${estudiante.nombres} ${estudiante.apellidos} -> ${estadoAsistencia}`);
-                } else {
-                    return res.status(409).json({
-                        error: 'El estudiante ya tiene un registro de asistencia el día de hoy.' +
-                               (enSimulacion ? ' (Modo Simulación: puedes usar "Limpiar Asistencias de Prueba" para reiniciar).' : ''),
-                        alumno: `${estudiante.nombres} ${estudiante.apellidos}`,
-                        grado: estudiante.grado,
-                        seccion: estudiante.seccion
-                    });
-                }
-            } else {
-                throw dbError;
+                return res.status(409).json({
+                    error: 'El estudiante ya tiene un registro de asistencia el día de hoy.',
+                    alumno: `${estudiante.nombres} ${estudiante.apellidos}`,
+                    grado: estudiante.grado,
+                    seccion: estudiante.seccion
+                });
             }
+            throw dbError;
         }
 
         if (estadoAsistencia === 'Tardanza' && estudiante.telefono_apoderado) {
@@ -129,8 +109,7 @@ const registrarAsistenciaQR = async (req, res) => {
             fecha: fechaSQL,
             hora: horaSQL,
             estado: estadoAsistencia,
-            hora_limite_puntual: estudiante.hora_limite_puntual || null,
-            modoSimulacion: enSimulacion
+            hora_limite_puntual: estudiante.hora_limite_puntual || null
         });
 
     } catch (error) {
@@ -893,15 +872,10 @@ const exportarReporteConsolidadoExcel = async (req, res) => {
 let ultimaFechaCierreAuto = null;
 const iniciarProgramadorCierrePorton = () => {
     const horaCierreConfig = (process.env.HORA_CIERRE_PORTON || '13:30:00').slice(0, 5); // '13:30'
-    console.log(`⏰ Programador de Cierre de Portón configurado para las ${horaCierreConfig} hrs (America/Lima).`);
+    console.log(`⏰ Programador de Cierre de Portón activo para las ${horaCierreConfig} hrs (America/Lima).`);
 
     setInterval(async () => {
         try {
-            // Si el Modo Simulación está activado o se desactiva por .env, se suspende el auto-cierre
-            if (esModoSimulacion() || process.env.DESACTIVAR_CIERRE_AUTO === 'true') {
-                return;
-            }
-
             const { fechaSQL, horaSQL } = obtenerFechaHoraPeru();
             const diaSemana = new Date().toLocaleDateString('en-US', { timeZone: 'America/Lima', weekday: 'short' });
 
@@ -918,52 +892,6 @@ const iniciarProgramadorCierrePorton = () => {
     }, 30000);
 };
 
-/**
- * POST /api/asistencia/limpiar-dia (Protegido para TOECE y Administración)
- * Elimina los registros de asistencia de una fecha (por defecto hoy) para reiniciar pruebas
- */
-const limpiarAsistenciaDia = async (req, res) => {
-    try {
-        const { fechaSQL } = obtenerFechaHoraPeru();
-        const fechaObjetivo = req.body?.fecha || fechaSQL;
-
-        const [resultado] = await pool.query('DELETE FROM Asistencia WHERE fecha = ?', [fechaObjetivo]);
-        console.log(`🧹 [Asistencia] Registros eliminados para la fecha ${fechaObjetivo}: ${resultado.affectedRows}`);
-
-        return res.status(200).json({
-            mensaje: `Se eliminaron ${resultado.affectedRows} registros de asistencia de la fecha ${fechaObjetivo}. El padrón de hoy quedó limpio para nuevas lecturas.`,
-            eliminados: resultado.affectedRows,
-            fecha: fechaObjetivo
-        });
-    } catch (error) {
-        console.error('❌ Error al limpiar asistencia del día:', error);
-        return res.status(500).json({ error: 'Error al limpiar la asistencia del día.' });
-    }
-};
-
-/**
- * GET /api/asistencia/modo-simulacion
- */
-const obtenerEstadoSimulacion = (req, res) => {
-    return res.status(200).json({
-        modoSimulacion: esModoSimulacion()
-    });
-};
-
-/**
- * POST /api/asistencia/modo-simulacion
- */
-const alternarModoSimulacionController = (req, res) => {
-    const { activo } = req.body || {};
-    const nuevoEstado = establecerModoSimulacion(activo !== undefined ? activo : !esModoSimulacion());
-    return res.status(200).json({
-        mensaje: nuevoEstado
-            ? '🧪 Modo Simulación ACTIVADO. El auto-cierre de la 1:30 PM está suspendido y WhatsApp opera en modo prueba.'
-            : '✅ Modo Simulación DESACTIVADO. Operación escolar normal en producción.',
-        modoSimulacion: nuevoEstado
-    });
-};
-
 module.exports = {
     registrarAsistenciaQR,
     cerrarPortonManual,
@@ -976,8 +904,5 @@ module.exports = {
     cambiarEstadoEstudiante,
     importarExcelWeb,
     exportarReporteConsolidadoExcel,
-    iniciarProgramadorCierrePorton,
-    limpiarAsistenciaDia,
-    obtenerEstadoSimulacion,
-    alternarModoSimulacionController
+    iniciarProgramadorCierrePorton
 };

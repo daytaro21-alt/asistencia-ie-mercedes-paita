@@ -13,10 +13,7 @@ const {
     cambiarSeccionEstudiante,
     cambiarEstadoEstudiante,
     importarExcelWeb,
-    exportarReporteConsolidadoExcel,
-    limpiarAsistenciaDia,
-    obtenerEstadoSimulacion,
-    alternarModoSimulacionController
+    exportarReporteConsolidadoExcel
 } = require('../controllers/asistencia.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
@@ -88,13 +85,6 @@ router.post('/whatsapp/despachar', verificarToken, verificarRol(['TOECE', 'Admin
         return res.status(500).json({ error: 'Error al despachar la cola de WhatsApp.' });
     }
 });
-
-// Modo Simulación / Capacitación (para pruebas fuera de horario como 4:00 PM sin bloquear portón ni alertar a padres reales)
-router.get('/asistencia/modo-simulacion', obtenerEstadoSimulacion);
-router.post('/asistencia/modo-simulacion', verificarToken, verificarRol(['TOECE', 'Administracion']), alternarModoSimulacionController);
-
-// Limpiar asistencia de prueba del día (para reiniciar el padrón de hoy tras la capacitación)
-router.post('/asistencia/limpiar-dia', verificarToken, verificarRol(['TOECE', 'Administracion']), limpiarAsistenciaDia);
 
 // ==========================================
 // 4. RUTAS EXCLUSIVAS DE ADMINISTRACIÓN

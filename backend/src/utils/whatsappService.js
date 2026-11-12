@@ -4,7 +4,6 @@ const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
-const { esModoSimulacion } = require('../config/appConfig');
 
 let clienteListo = false;
 let ultimoQrDataUrl = null;
@@ -127,17 +126,6 @@ const procesarCola = async () => {
 
     procesandoCola = true;
 
-    // MODO SIMULACIÓN: Drenar la cola sin enviar a teléfonos reales para proteger la cuenta y evitar alertar a padres
-    if (esModoSimulacion()) {
-        console.log(`🧪 [WhatsApp - Modo Simulación Activo] Vaciando cola de ${colaMensajes.length} alertas en modo prueba.`);
-        while (colaMensajes.length > 0) {
-            const item = colaMensajes.shift();
-            console.log(`   [SIMULADO] Para: ${item.telefonoNormalizado} | Alumno: ${item.alumno}`);
-        }
-        procesandoCola = false;
-        return;
-    }
-
     if (!clienteListo) {
         console.warn(`⚠️ [WhatsApp] Hay ${colaMensajes.length} mensajes en cola, pero WhatsApp aún no está listo.`);
         procesandoCola = false;
@@ -233,7 +221,6 @@ const obtenerEstadoWhatsApp = () => ({
     qrDataUrl: clienteListo ? null : ultimoQrDataUrl,
     colaPendiente: colaMensajes.length,
     segundosEntreMensajes: SEGUNDOS_ENTRE_MENSAJES,
-    modoSimulacion: esModoSimulacion(),
     enProceso: procesandoCola
 });
 
