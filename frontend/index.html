@@ -86,12 +86,17 @@
                     <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-dorado-400 text-mercedes-900">PERÚ</span>
                 </div>
 
-                <!-- Selector de Modo: Kiosco Portón vs Panel Institucional -->
+                <!-- Selector de Modo: Kiosco Portón vs Permisos vs Panel Institucional -->
                 <div class="flex bg-mercedes-900/80 p-1 rounded-xl border border-dorado-400/40">
                     <button id="btnModoKiosco" onclick="cambiarModo('kiosco')"
                         class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow">
                         <i data-lucide="scan-line" class="w-4 h-4"></i>
                         Portón QR
+                    </button>
+                    <button id="btnModoPermisos" onclick="cambiarModo('permisos')"
+                        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
+                        <i data-lucide="door-open" class="w-4 h-4"></i>
+                        Permisos
                     </button>
                     <button id="btnModoToece" onclick="cambiarModo('toece')"
                         class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white">
@@ -193,6 +198,197 @@
                 <div id="listaUltimasLecturas" class="divide-y divide-slate-100 max-h-60 overflow-y-auto text-sm">
                     <p class="text-xs text-slate-400 py-6 text-center">Aún no se han escaneado carnets en esta sesión.</p>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- VISTA 1B: PERMISOS DE SALIDA CON QR (TABLA INDEPENDIENTE) -->
+    <!-- ========================================================= -->
+    <main id="vistaPermisos" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Columna Izquierda (5 cols): Escáner QR + Selector de Motivo de Salida -->
+        <div class="lg:col-span-5 bg-white border-t-4 border-t-sky-600 border-x border-b border-slate-200 rounded-2xl p-6 shadow-md space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-sky-800 bg-sky-50 border border-sky-200 px-3 py-1 rounded-full">
+                    <i data-lucide="door-open" class="w-3.5 h-3.5"></i>
+                    Permisos de Salida QR
+                </span>
+                <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    Independiente de Asistencia
+                </span>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-extrabold text-slate-900">Autorizar Salida de Estudiante</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Escanea el carnet QR del estudiante y elige el motivo oficial de salida.</p>
+            </div>
+
+            <!-- Formulario Escáner QR para Permisos -->
+            <form onsubmit="procesarQrPermisoManual(event)" class="space-y-2.5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    1. Escanear Carnet QR (DNI 8 dígitos)
+                </label>
+                <div class="relative">
+                    <input type="text" id="inputDniPermiso" maxlength="8" autocomplete="off"
+                        placeholder="Pasa el carnet QR por el lector..."
+                        class="w-full bg-slate-50 border-2 border-sky-600 rounded-xl px-4 py-3 text-base font-mono font-bold tracking-widest text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white">
+                    <button type="submit"
+                        class="absolute right-2 top-2 bottom-2 bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 rounded-lg text-xs transition shadow flex items-center gap-1">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        Buscar
+                    </button>
+                </div>
+            </form>
+
+            <!-- Cámara Web opcional para Permisos -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">¿Escanear usando cámara?</span>
+                <button id="btnToggleCamaraPermisos" type="button" onclick="alternarCamaraPermisosQR()"
+                    class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-3.5 h-3.5 text-sky-600"></i>
+                    <span>Activar Cámara</span>
+                </button>
+            </div>
+            <div id="contenedorCamaraPermisos" class="hidden rounded-xl overflow-hidden border-2 border-sky-600 bg-black">
+                <div id="readerQrPermisos" class="w-full"></div>
+            </div>
+
+            <!-- Tarjeta Dinámica: Datos del Alumno Escaneado + Opciones de Motivo -->
+            <form id="panelSeleccionMotivoPermiso" onsubmit="confirmarRegistroPermisoSalida(event)" class="hidden bg-sky-50/70 border-2 border-sky-300 rounded-2xl p-4 space-y-3.5">
+                <input type="hidden" id="permEstDni">
+
+                <div class="bg-white border border-sky-200 rounded-xl p-3 flex items-start justify-between gap-2">
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-100 text-sky-800">Estudiante Detectado</span>
+                        <h3 id="permEstNombre" class="text-sm font-extrabold text-slate-900 mt-1">--</h3>
+                        <p id="permEstDetalle" class="text-xs font-semibold text-mercedes-700">--</p>
+                        <p id="permEstAvisoPrevio" class="hidden text-[11px] font-bold text-amber-700 mt-1"></p>
+                    </div>
+                    <button type="button" onclick="cancelarSeleccionPermiso()" class="text-slate-400 hover:text-rose-600 font-bold text-lg leading-none" title="Cancelar">&times;</button>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-800 mb-2">
+                        2. Selecciona el Motivo de Salida *
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridMotivosPermiso">
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'Malestar / Emergencia de Salud')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            🏥 Malestar / Salud
+                        </button>
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'Cita Médica / Odontológica')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            🩺 Cita Médica
+                        </button>
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'Retiro con Padre / Apoderado')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            👨‍👩‍👧 Con Apoderado
+                        </button>
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'Trámite / Urgencia Familiar')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            📄 Urgencia Familiar
+                        </button>
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'Comisión / Representación Institucional')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            🏆 Comisión Escolar
+                        </button>
+                        <button type="button" onclick="seleccionarMotivoChip(this, 'OTRO')"
+                            class="chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition">
+                            ✏️ Otro Motivo
+                        </button>
+                    </div>
+                    <input type="text" id="permMotivoPersonalizado" placeholder="Escribe el motivo de salida..."
+                        class="hidden mt-2 w-full bg-white border-2 border-sky-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Observación / Quién recoge (Opcional)</label>
+                    <input type="text" id="permDetalleSalida" maxlength="200"
+                        placeholder="Ej: Recoge madre Sra. Juana Pérez (DNI ...)"
+                        class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-sky-600 focus:outline-none">
+                </div>
+
+                <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl p-2.5">
+                    <input type="checkbox" id="permNotificarWsp" class="rounded accent-emerald-600">
+                    <span>📲 Notificar esta salida por WhatsApp al apoderado</span>
+                </label>
+
+                <button type="submit" id="btnGuardarPermisoSalida"
+                    class="w-full bg-sky-600 hover:bg-sky-700 text-white font-extrabold py-3 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    Autorizar y Registrar Permiso de Salida
+                </button>
+            </form>
+
+            <!-- Confirmación del último permiso otorgado -->
+            <div id="tarjetaConfirmacionPermiso" class="hidden bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 text-center space-y-2">
+                <span class="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">✅ Permiso de Salida Autorizado</span>
+                <p id="confPermisoAlumno" class="text-sm font-extrabold text-slate-900">--</p>
+                <p id="confPermisoDetalle" class="text-xs text-emerald-800 font-semibold">--</p>
+            </div>
+        </div>
+
+        <!-- Columna Derecha (7 cols): Tabla Independiente de Permisos de Salida -->
+        <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-sm font-extrabold text-mercedes-800 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4 text-sky-600"></i>
+                        Registro Independiente de Permisos de Salida
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Historial separado de la tabla de asistencia diaria. Total hoy: <strong id="lblTotalPermisosDia" class="text-sky-700">0</strong></p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <input type="date" id="filtroFechaPermisos" onchange="cargarTablaPermisosSalida()"
+                        class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800">
+                    <select id="filtroSeccionPermisos" onchange="cargarTablaPermisosSalida()"
+                        class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800">
+                        <option value="">Todas (A-H)</option>
+                        <option value="A">5to A</option>
+                        <option value="B">5to B</option>
+                        <option value="C">5to C</option>
+                        <option value="D">5to D</option>
+                        <option value="E">5to E</option>
+                        <option value="F">5to F</option>
+                        <option value="G">5to G</option>
+                        <option value="H">5to H</option>
+                    </select>
+                    <button type="button" onclick="cargarTablaPermisosSalida()" class="p-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200" title="Actualizar">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" onclick="imprimirReportePermisosPDF()"
+                        class="flex items-center gap-1.5 bg-dorado-400 hover:bg-dorado-300 text-mercedes-900 font-extrabold text-xs px-3 py-1.5 rounded-lg shadow-sm border border-dorado-500 transition">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        Imprimir PDF Permisos
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2">
+                <input type="text" id="busquedaTablaPermisos" oninput="renderizarTablaPermisos()"
+                    placeholder="Buscar estudiante, DNI o motivo..."
+                    class="w-full sm:w-72 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:border-sky-600 focus:outline-none">
+                <span class="text-[11px] font-semibold text-slate-400 hidden sm:inline">Autorizado por personal en turno</span>
+            </div>
+
+            <div class="overflow-x-auto max-h-[480px] overflow-y-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-sky-700 text-white sticky top-0">
+                        <tr>
+                            <th class="py-2.5 px-3 font-bold">Hora</th>
+                            <th class="py-2.5 px-3 font-bold">DNI</th>
+                            <th class="py-2.5 px-3 font-bold">Estudiante</th>
+                            <th class="py-2.5 px-3 font-bold">Sec.</th>
+                            <th class="py-2.5 px-3 font-bold">Motivo de Salida</th>
+                            <th class="py-2.5 px-3 font-bold text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaPermisosSalida" class="divide-y divide-slate-200">
+                        <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando permisos de salida...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </main>
@@ -784,11 +980,16 @@
         let usuarioActual = JSON.parse(localStorage.getItem('toece_user') || 'null');
         let html5QrScanner = null;
         let camaraActiva = false;
+        let html5QrPermisosScanner = null;
+        let camaraPermisosActiva = false;
+        let modoPendienteLogin = 'toece';
         const historialLocalPorton = [];
 
         // Estado local para filtrado rápido en el panel de monitoreo (Auxiliar / TOECE / Admin)
         let padronDiaCache = [];
         let filtroEstadoActual = 'TODOS_PADRON';
+        let permisosCache = [];
+        let motivoPermisoSeleccionado = '';
 
         // Inicializar íconos y reloj de Perú
         lucide.createIcons();
@@ -800,10 +1001,13 @@
             }).format(ahora);
         }, 1000);
 
-        // Fijar fecha de hoy (America/Lima) en el selector del dashboard
-        document.getElementById('filtroFecha').value = new Intl.DateTimeFormat('sv-SE', {
+        // Fijar fecha de hoy (America/Lima) en los selectores de asistencia y permisos
+        const hoyPeruISO = new Intl.DateTimeFormat('sv-SE', {
             timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
         }).format(new Date());
+        document.getElementById('filtroFecha').value = hoyPeruISO;
+        const elFechaPermisos = document.getElementById('filtroFechaPermisos');
+        if (elFechaPermisos) elFechaPermisos.value = hoyPeruISO;
 
         // Beep sintético con Web Audio API para feedback auditivo en el portón
         function reproducirSonido(tipo) {
@@ -898,33 +1102,55 @@
             }
         }
 
-        // Alternar entre Vista Kiosco Portón y Panel Institucional
+        // Alternar entre Vista Kiosco Portón, Permisos de Salida y Panel Institucional
         function cambiarModo(modo) {
+            if (modo !== 'kiosco' && camaraActiva) alternarCamaraQR();
+            if (modo !== 'permisos' && camaraPermisosActiva) alternarCamaraPermisosQR();
+
             const vKiosco = document.getElementById('vistaKiosco');
+            const vPerm = document.getElementById('vistaPermisos');
             const vLogin = document.getElementById('vistaLogin');
             const vDash = document.getElementById('vistaDashboard');
+
             const btnK = document.getElementById('btnModoKiosco');
+            const btnP = document.getElementById('btnModoPermisos');
             const btnT = document.getElementById('btnModoToece');
+
+            const claseActiva = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
+            const claseInactiva = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
+
+            vKiosco.classList.add('hidden');
+            vPerm.classList.add('hidden');
+            vLogin.classList.add('hidden');
+            vDash.classList.add('hidden');
+
+            btnK.className = claseInactiva;
+            btnP.className = claseInactiva;
+            btnT.className = claseInactiva;
 
             if (modo === 'kiosco') {
                 vKiosco.classList.remove('hidden');
-                vLogin.classList.add('hidden');
-                vDash.classList.add('hidden');
-                btnK.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
-                btnT.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
+                btnK.className = claseActiva;
                 setTimeout(() => document.getElementById('inputDniQr').focus(), 100);
-            } else {
-                vKiosco.classList.add('hidden');
-                btnT.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-dorado-400 text-mercedes-900 shadow';
-                btnK.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-red-100 hover:text-white';
-
+            } else if (modo === 'permisos') {
+                btnP.className = claseActiva;
                 if (tokenJWT && usuarioActual) {
-                    vLogin.classList.add('hidden');
+                    vPerm.classList.remove('hidden');
+                    cargarTablaPermisosSalida();
+                    setTimeout(() => document.getElementById('inputDniPermiso').focus(), 100);
+                } else {
+                    modoPendienteLogin = 'permisos';
+                    seleccionarPerfilLogin('Auxiliar', 'auxiliar_uno');
+                    vLogin.classList.remove('hidden');
+                }
+            } else {
+                btnT.className = claseActiva;
+                if (tokenJWT && usuarioActual) {
                     vDash.classList.remove('hidden');
                     aplicarPermisosPorPerfil();
                     cargarResumenDashboard();
                 } else {
-                    vDash.classList.add('hidden');
+                    modoPendienteLogin = 'toece';
                     vLogin.classList.remove('hidden');
                 }
             }
@@ -1074,7 +1300,9 @@
                 usuarioActual = data.usuario;
                 localStorage.setItem('toece_jwt', tokenJWT);
                 localStorage.setItem('toece_user', JSON.stringify(usuarioActual));
-                cambiarModo('toece');
+                const destino = modoPendienteLogin === 'permisos' ? 'permisos' : 'toece';
+                modoPendienteLogin = 'toece';
+                cambiarModo(destino);
             } catch (err) {
                 errBox.innerText = 'No se pudo conectar con el servidor.';
                 errBox.classList.remove('hidden');
@@ -2101,6 +2329,396 @@
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
             }
+        }
+
+        // =====================================================
+        // LÓGICA 8: MÓDULO INDEPENDIENTE DE PERMISOS DE SALIDA QR
+        // =====================================================
+        async function procesarQrPermisoManual(e) {
+            e.preventDefault();
+            const input = document.getElementById('inputDniPermiso');
+            const dni = input.value.trim();
+            if (!dni) return;
+            input.value = '';
+            await buscarEstudianteParaPermiso(dni);
+        }
+
+        async function buscarEstudianteParaPermiso(dni) {
+            if (!tokenJWT) return cambiarModo('permisos');
+            if (!/^\d{8}$/.test(dni)) {
+                reproducirSonido('error');
+                alert('El código QR / DNI debe tener exactamente 8 dígitos.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/permisos/buscar/${dni}`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    const errAuth = await res.json().catch(() => ({}));
+                    alert(errAuth.error || 'Tu sesión expiró. Inicia sesión nuevamente.');
+                    return cerrarSesion();
+                }
+                const data = await res.json();
+                if (!res.ok) {
+                    reproducirSonido('error');
+                    alert(data.error || 'Estudiante no encontrado.');
+                    return;
+                }
+
+                reproducirSonido('ok');
+                const est = data.estudiante;
+                document.getElementById('permEstDni').value = est.dni;
+                document.getElementById('permEstNombre').innerText = `${est.apellidos}, ${est.nombres}`;
+                document.getElementById('permEstDetalle').innerText = `DNI: ${est.dni} • 5to Secundaria Sección "${est.seccion}"${est.telefono_apoderado ? ` • Apoderado: ${est.telefono_apoderado}` : ''}`;
+
+                const aviso = document.getElementById('permEstAvisoPrevio');
+                if (data.permisosHoy && data.permisosHoy.length > 0) {
+                    aviso.innerText = `⚠️ Nota: Este alumno ya registra ${data.permisosHoy.length} permiso(s) de salida el día de hoy.`;
+                    aviso.classList.remove('hidden');
+                } else {
+                    aviso.classList.add('hidden');
+                }
+
+                // Resetear formulario de motivos
+                motivoPermisoSeleccionado = '';
+                document.querySelectorAll('.chip-motivo').forEach(btn => {
+                    btn.className = 'chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition';
+                });
+                const inputOtro = document.getElementById('permMotivoPersonalizado');
+                inputOtro.value = '';
+                inputOtro.classList.add('hidden');
+                document.getElementById('permDetalleSalida').value = '';
+                document.getElementById('permNotificarWsp').checked = false;
+
+                document.getElementById('tarjetaConfirmacionPermiso').classList.add('hidden');
+                document.getElementById('panelSeleccionMotivoPermiso').classList.remove('hidden');
+                lucide.createIcons();
+            } catch (err) {
+                reproducirSonido('error');
+                alert('Error de conexión al buscar al estudiante.');
+            }
+        }
+
+        function seleccionarMotivoChip(btnEl, motivo) {
+            document.querySelectorAll('.chip-motivo').forEach(btn => {
+                btn.className = 'chip-motivo text-left px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-sky-500 text-xs font-bold text-slate-700 transition';
+            });
+            btnEl.className = 'chip-motivo text-left px-3 py-2 rounded-xl border-2 border-sky-600 bg-sky-600 text-white text-xs font-extrabold shadow-sm transition';
+
+            const inputOtro = document.getElementById('permMotivoPersonalizado');
+            if (motivo === 'OTRO') {
+                motivoPermisoSeleccionado = 'OTRO';
+                inputOtro.classList.remove('hidden');
+                inputOtro.focus();
+            } else {
+                motivoPermisoSeleccionado = motivo;
+                inputOtro.classList.add('hidden');
+                inputOtro.value = '';
+            }
+        }
+
+        function cancelarSeleccionPermiso() {
+            document.getElementById('panelSeleccionMotivoPermiso').classList.add('hidden');
+            document.getElementById('inputDniPermiso').focus();
+        }
+
+        async function confirmarRegistroPermisoSalida(e) {
+            e.preventDefault();
+            if (!tokenJWT) return;
+
+            const dni = document.getElementById('permEstDni').value;
+            const inputOtro = document.getElementById('permMotivoPersonalizado').value.trim();
+            const motivoFinal = motivoPermisoSeleccionado === 'OTRO' ? inputOtro : motivoPermisoSeleccionado;
+            const detalle = document.getElementById('permDetalleSalida').value.trim();
+            const notificarWhatsApp = document.getElementById('permNotificarWsp').checked;
+
+            if (!motivoFinal) {
+                alert('Por favor selecciona o escribe el motivo de salida.');
+                return;
+            }
+
+            const btn = document.getElementById('btnGuardarPermisoSalida');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/permisos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokenJWT}`
+                    },
+                    body: JSON.stringify({ dni, motivo: motivoFinal, detalle, notificarWhatsApp })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo registrar el permiso de salida.');
+                    return;
+                }
+
+                reproducirSonido('ok');
+                document.getElementById('panelSeleccionMotivoPermiso').classList.add('hidden');
+                const p = data.permiso;
+                document.getElementById('confPermisoAlumno').innerText = `${p.apellidos}, ${p.nombres} (5to "${p.seccion}")`;
+                document.getElementById('confPermisoDetalle').innerText = `Salida: ${p.hora_salida} • Motivo: ${p.motivo}${data.whatsappEncolado ? ' • 📲 WhatsApp encolado' : ''}`;
+                document.getElementById('tarjetaConfirmacionPermiso').classList.remove('hidden');
+
+                cargarTablaPermisosSalida();
+                document.getElementById('inputDniPermiso').focus();
+            } catch (err) {
+                alert('Error de red al guardar el permiso de salida.');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function alternarCamaraPermisosQR() {
+            const cont = document.getElementById('contenedorCamaraPermisos');
+            const btn = document.getElementById('btnToggleCamaraPermisos');
+
+            if (!camaraPermisosActiva) {
+                cont.classList.remove('hidden');
+                html5QrPermisosScanner = new Html5Qrcode("readerQrPermisos");
+                try {
+                    let ultimoDniPermisoLeido = '';
+                    await html5QrPermisosScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 220, height: 220 } },
+                        (decodedText) => {
+                            const limpio = decodedText.trim();
+                            if (/^\d{8}$/.test(limpio) && limpio !== ultimoDniPermisoLeido) {
+                                ultimoDniPermisoLeido = limpio;
+                                buscarEstudianteParaPermiso(limpio);
+                                setTimeout(() => { ultimoDniPermisoLeido = ''; }, 3500);
+                            }
+                        }
+                    );
+                    camaraPermisosActiva = true;
+                    btn.innerHTML = '<i data-lucide="camera-off" class="w-3.5 h-3.5 text-rose-600"></i><span>Detener Cámara</span>';
+                    lucide.createIcons();
+                } catch (e) {
+                    alert('No se pudo acceder a la cámara web.');
+                    cont.classList.add('hidden');
+                }
+            } else {
+                if (html5QrPermisosScanner) await html5QrPermisosScanner.stop();
+                cont.classList.add('hidden');
+                camaraPermisosActiva = false;
+                btn.innerHTML = '<i data-lucide="camera" class="w-3.5 h-3.5 text-sky-600"></i><span>Activar Cámara</span>';
+                lucide.createIcons();
+            }
+        }
+
+        async function cargarTablaPermisosSalida() {
+            if (!tokenJWT) return;
+            const fecha = document.getElementById('filtroFechaPermisos').value;
+            const seccion = document.getElementById('filtroSeccionPermisos').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/permisos?fecha=${fecha}&seccion=${seccion}`, {
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                if (res.status === 401 || res.status === 403) return cerrarSesion();
+                const data = await res.json();
+                permisosCache = data.permisos || [];
+                document.getElementById('lblTotalPermisosDia').innerText = permisosCache.length;
+                renderizarTablaPermisos();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderizarTablaPermisos() {
+            const tbody = document.getElementById('tablaPermisosSalida');
+            const busq = (document.getElementById('busquedaTablaPermisos')?.value || '').trim().toLowerCase();
+
+            const filtrados = permisosCache.filter(p => {
+                if (!busq) return true;
+                return String(p.dni).includes(busq) ||
+                    `${p.apellidos} ${p.nombres}`.toLowerCase().includes(busq) ||
+                    String(p.motivo || '').toLowerCase().includes(busq) ||
+                    String(p.detalle || '').toLowerCase().includes(busq);
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No hay permisos de salida registrados para esta fecha.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtrados.map(p => {
+                const nombreSeguro = `${p.apellidos}, ${p.nombres}`.replace(/'/g, "\\'");
+                return `
+                    <tr class="hover:bg-sky-50/40">
+                        <td class="py-2.5 px-3 font-mono font-bold text-sky-800">${p.hora_salida}</td>
+                        <td class="py-2.5 px-3 font-mono text-slate-500">${p.dni}</td>
+                        <td class="py-2.5 px-3">
+                            <p class="font-bold text-slate-900">${p.apellidos}, ${p.nombres}</p>
+                            <p class="text-[10px] text-slate-400">Autorizó: ${p.autorizado_por || '--'}</p>
+                        </td>
+                        <td class="py-2.5 px-3 font-bold text-mercedes-700">5to "${p.seccion}"</td>
+                        <td class="py-2.5 px-3">
+                            <span class="inline-block px-2 py-0.5 rounded bg-sky-100 text-sky-900 border border-sky-200 text-[10.5px] font-bold">
+                                ${p.motivo}
+                            </span>
+                            ${p.detalle ? `<p class="text-[10px] text-slate-500 mt-0.5 italic">💬 ${p.detalle}</p>` : ''}
+                        </td>
+                        <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
+                            <button type="button" onclick="imprimirPapeletaIndividual(${p.id_permiso})"
+                                class="bg-amber-50 hover:bg-dorado-400 text-mercedes-900 border border-dorado-400 px-2 py-1 rounded-lg text-[10.5px] font-bold transition" title="Imprimir Papeleta de Salida">
+                                🖨️ Papeleta
+                            </button>
+                            <button type="button" onclick="anularPermisoSalidaUI(${p.id_permiso}, '${nombreSeguro}')"
+                                class="bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 px-2 py-1 rounded-lg text-[10.5px] font-bold transition" title="Anular permiso">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function anularPermisoSalidaUI(id, nombre) {
+            if (!confirm(`¿Deseas anular el permiso de salida de ${nombre}?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/permisos/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${tokenJWT}` }
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo anular el permiso.');
+                    return;
+                }
+                cargarTablaPermisosSalida();
+            } catch (e) {
+                alert('Error de red al anular permiso.');
+            }
+        }
+
+        function imprimirPapeletaIndividual(id) {
+            const p = permisosCache.find(item => item.id_permiso === id);
+            if (!p) return;
+            const win = window.open('', '_blank', 'width=520,height=600');
+            win.document.write(`
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Papeleta de Salida - ${p.dni}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+                        .papeleta { border: 2px solid #7f091c; border-radius: 10px; padding: 18px; max-width: 440px; margin: auto; }
+                        .hdr { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #facc15; padding-bottom: 10px; margin-bottom: 14px; }
+                        .hdr img { width: 42px; height: 50px; object-fit: contain; }
+                        .hdr h2 { margin: 0; font-size: 14px; color: #7f091c; text-transform: uppercase; }
+                        .hdr p { margin: 2px 0 0; font-size: 10px; font-weight: bold; color: #475569; }
+                        .titulo { text-align: center; background: #7f091c; color: #fff; font-weight: bold; font-size: 13px; padding: 6px; border-radius: 6px; margin-bottom: 14px; letter-spacing: 0.5px; }
+                        .dato { margin-bottom: 8px; font-size: 12px; }
+                        .dato strong { color: #7f091c; }
+                        .firmas { display: flex; justify-content: space-between; gap: 20px; margin-top: 42px; text-align: center; font-size: 10px; }
+                        .linea { border-top: 1px solid #334155; padding-top: 4px; width: 46%; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="papeleta">
+                        <div class="hdr">
+                            <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia">
+                            <div>
+                                <h2>I.E. Nuestra Señora de las Mercedes</h2>
+                                <p>PAITA • AUXILIARÍA Y TOECE — TURNO TARDE</p>
+                            </div>
+                        </div>
+                        <div class="titulo">PAPELETA OFICIAL DE SALIDA N° ${String(p.id_permiso).padStart(5, '0')}</div>
+                        <div class="dato"><strong>ESTUDIANTE:</strong> ${p.apellidos}, ${p.nombres}</div>
+                        <div class="dato"><strong>DNI:</strong> ${p.dni} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>GRADO Y SECCIÓN:</strong> 5to "${p.seccion}"</div>
+                        <div class="dato"><strong>FECHA:</strong> ${p.fecha} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>HORA DE SALIDA:</strong> ${p.hora_salida}</div>
+                        <div class="dato"><strong>MOTIVO AUTORIZADO:</strong> ${p.motivo}</div>
+                        ${p.detalle ? `<div class="dato"><strong>OBSERVACIÓN / RECOGE:</strong> ${p.detalle}</div>` : ''}
+                        <div class="dato"><strong>AUTORIZADO POR:</strong> ${p.autorizado_por || 'Auxiliar de Turno'}</div>
+                        <div class="firmas">
+                            <div class="linea">Firma Auxiliar / TOECE</div>
+                            <div class="linea">V°B° Portería (Control Puerta)</div>
+                        </div>
+                    </div>
+                    <script>window.onload = () => { window.print(); };<\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
+        }
+
+        function imprimirReportePermisosPDF() {
+            if (permisosCache.length === 0) {
+                alert('No hay permisos de salida para imprimir en esta fecha.');
+                return;
+            }
+            const fecha = document.getElementById('filtroFechaPermisos').value;
+            const filas = permisosCache.map((p, idx) => `
+                <tr>
+                    <td style="text-align:center;font-weight:bold;">${idx + 1}</td>
+                    <td style="font-family:monospace;text-align:center;">${p.hora_salida}</td>
+                    <td style="font-family:monospace;text-align:center;">${p.dni}</td>
+                    <td><strong>${p.apellidos}, ${p.nombres}</strong></td>
+                    <td style="text-align:center;font-weight:bold;color:#7f091c;">5to "${p.seccion}"</td>
+                    <td>${p.motivo}${p.detalle ? `<div style="font-size:9px;color:#475569;font-style:italic;">${p.detalle}</div>` : ''}</td>
+                    <td style="text-align:center;">${p.autorizado_por || '--'}</td>
+                </tr>
+            `).join('');
+
+            const win = window.open('', '_blank', 'width=900,height=700');
+            win.document.write(`
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Reporte de Permisos de Salida - ${fecha}</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 12mm; }
+                        body { font-family: Arial, sans-serif; color: #1e293b; font-size: 11px; }
+                        .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #7f091c; padding-bottom: 8px; margin-bottom: 12px; }
+                        .hdr-left { display: flex; align-items: center; gap: 10px; }
+                        .hdr-left img { width: 42px; height: 50px; object-fit: contain; }
+                        h1 { margin: 0; font-size: 15px; color: #7f091c; text-transform: uppercase; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                        th { background: #0369a1; color: #fff; padding: 6px; font-size: 10px; border: 1px solid #0369a1; }
+                        td { padding: 5px 6px; border: 1px solid #cbd5e1; font-size: 10px; }
+                        tr:nth-child(even) { background: #f8fafc; }
+                    </style>
+                </head>
+                <body>
+                    <div class="hdr">
+                        <div class="hdr-left">
+                            <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia">
+                            <div>
+                                <h1>I.E. Nuestra Señora de las Mercedes — Paita</h1>
+                                <p style="margin:2px 0 0;font-weight:bold;color:#475569;">REGISTRO DIARIO DE PERMISOS DE SALIDA (5TO DE SECUNDARIA)</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right;font-size:10px;">
+                            <p style="margin:0;"><strong>FECHA:</strong> ${fecha}</p>
+                            <p style="margin:2px 0 0;"><strong>TOTAL PERMISOS:</strong> ${permisosCache.length}</p>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Hora</th>
+                                <th>DNI</th>
+                                <th>Apellidos y Nombres</th>
+                                <th>Sección</th>
+                                <th>Motivo / Detalle</th>
+                                <th>Autorizado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                    <script>window.onload = () => { window.print(); };<\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
         }
     </script>
 

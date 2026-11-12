@@ -16,6 +16,12 @@ const {
     importarExcelWeb,
     exportarReporteConsolidadoExcel
 } = require('../controllers/asistencia.controller');
+const {
+    buscarEstudiantePorQrPermiso,
+    registrarPermisoSalida,
+    listarPermisosSalida,
+    eliminarPermisoSalida
+} = require('../controllers/permisos.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 const { obtenerEstadoWhatsApp, despacharColaManual } = require('../utils/whatsappService');
@@ -40,6 +46,12 @@ router.put('/asistencia/corregir', verificarToken, verificarRol(['Auxiliar', 'TO
 
 // Exportar consolidado semanal / mensual a Excel (.xlsx) con sábana de días y orden alfabético
 router.get('/asistencia/exportar-excel', verificarToken, exportarReporteConsolidadoExcel);
+
+// Módulo independiente de Permisos de Salida mediante QR (Auxiliar, TOECE, Administracion)
+router.get('/permisos/buscar/:dni', verificarToken, verificarRol(['Auxiliar', 'TOECE', 'Administracion']), buscarEstudiantePorQrPermiso);
+router.get('/permisos', verificarToken, verificarRol(['Auxiliar', 'TOECE', 'Administracion']), listarPermisosSalida);
+router.post('/permisos', verificarToken, verificarRol(['Auxiliar', 'TOECE', 'Administracion']), registrarPermisoSalida);
+router.delete('/permisos/:id', verificarToken, verificarRol(['Auxiliar', 'TOECE', 'Administracion']), eliminarPermisoSalida);
 
 // Agente Analítico de IA (Gemini 2.5 Flash + Function Calling)
 router.post('/chat', verificarToken, async (req, res) => {

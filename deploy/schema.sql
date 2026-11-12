@@ -47,3 +47,20 @@ CREATE TABLE IF NOT EXISTS usuario (
     password VARCHAR(255) NOT NULL,
     rol VARCHAR(30) NOT NULL DEFAULT 'TOECE'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Tabla Independiente de Permisos de Salida (Controlado por Auxiliares / TOECE)
+CREATE TABLE IF NOT EXISTS PermisoSalida (
+    id_permiso INT AUTO_INCREMENT PRIMARY KEY,
+    estudiante_id INT NOT NULL,
+    fecha DATE NOT NULL,
+    hora_salida TIME NOT NULL,
+    motivo VARCHAR(100) NOT NULL,
+    detalle VARCHAR(255) DEFAULT NULL,
+    autorizado_por VARCHAR(50) DEFAULT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_permiso_fecha (fecha),
+    INDEX idx_permiso_estudiante (estudiante_id, fecha),
+    CONSTRAINT fk_permiso_estudiante
+        FOREIGN KEY (estudiante_id) REFERENCES Estudiante(id_estudiante)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

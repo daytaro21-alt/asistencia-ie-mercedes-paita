@@ -53,6 +53,25 @@ async function inicializarBaseDeDatos() {
             console.log("✅ [DB Mig] Columna 'observacion' añadida a la tabla Asistencia.");
         }
 
+        // 2c. Crear tabla independiente PermisoSalida si no existe
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS PermisoSalida (
+                id_permiso INT AUTO_INCREMENT PRIMARY KEY,
+                estudiante_id INT NOT NULL,
+                fecha DATE NOT NULL,
+                hora_salida TIME NOT NULL,
+                motivo VARCHAR(100) NOT NULL,
+                detalle VARCHAR(255) DEFAULT NULL,
+                autorizado_por VARCHAR(50) DEFAULT NULL,
+                creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_permiso_fecha (fecha),
+                INDEX idx_permiso_estudiante (estudiante_id, fecha),
+                CONSTRAINT fk_permiso_estudiante
+                    FOREIGN KEY (estudiante_id) REFERENCES Estudiante(id_estudiante)
+                    ON DELETE CASCADE ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
         // 3. Crear / asegurar los perfiles requeridos con sus credenciales oficiales
         const salt = await bcrypt.genSalt(10);
 

@@ -165,17 +165,34 @@ const procesarCola = async () => {
     procesandoCola = false;
 };
 
-/**
- * Encola una alerta y activa el despachador de 20 segundos inmediatamente si no está en marcha.
- */
-const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza', fecha = '') => {
+const encolarMensajeWhatsApp = (telefono, nombreAlumno, mensaje, estado, horaRegistro) => {
     const telefonoNormalizado = normalizarTelefonoPeru(telefono);
 
     if (!telefonoNormalizado) {
         console.warn(`⚠️ Teléfono inválido omitido para el alumno ${nombreAlumno}: "${telefono}"`);
-        return;
+        return false;
     }
 
+    colaMensajes.push({
+        telefonoNormalizado,
+        alumno: nombreAlumno,
+        mensaje,
+        estado,
+        horaRegistro: horaRegistro || new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    });
+
+    console.log(`📥 [Cola WhatsApp] Mensaje agregado para ${nombreAlumno} (${estado}). Total en cola: ${colaMensajes.length}`);
+
+    if (!procesandoCola) {
+        setImmediate(() => procesarCola());
+    }
+    return true;
+};
+
+/**
+ * Encola una alerta de asistencia y activa el despachador de 20 segundos.
+ */
+const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza', fecha = '') => {
     const emojiEstado = estado === 'Tardanza' ? '⏰' : '🚨';
     const detalleHora = hora ? `\n🕒 *Hora de ingreso:* ${hora}` : '';
     const detalleFecha = fecha ? `\n📅 *Fecha:* ${fecha}` : '';
@@ -190,20 +207,25 @@ const enviarAlertaWhatsApp = (telefono, nombreAlumno, hora, estado = 'Tardanza',
         `${emojiEstado} *Estado:* ${estado.toUpperCase()}\n\n` +
         `_Este es un mensaje automático del sistema de control por código QR._`;
 
-    colaMensajes.push({
-        telefonoNormalizado,
-        alumno: nombreAlumno,
-        mensaje,
-        estado,
-        horaRegistro: hora || new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    });
+    encolarMensajeWhatsApp(telefono, nombreAlumno, mensaje, estado, hora);
+};
 
-    console.log(`📥 [Cola WhatsApp] Alerta agregada para ${nombreAlumno} (${estado}). Total en cola: ${colaMensajes.length}`);
+/**
+ * Encola un aviso de Permiso de Salida autorizado al apoderado.
+ */
+const enviarAlertaSalidaWhatsApp = (telefono, nombreAlumno, horaSalida, motivo, fecha, detalle = '') => {
+    const detalleTxt = detalle ? `\n📝 *Detalle:* ${detalle}` : '';
+    const mensaje =
+        `*I.E. NUESTRA SEÑORA DE LAS MERCEDES*\n` +
+        `_Auxiliaría / TOECE - Permiso de Salida_\n\n` +
+        `Estimado padre de familia / apoderado, se le informa que se ha autorizado el retiro del plantel de su menor hijo(a):\n\n` +
+        `👤 *Estudiante:* ${nombreAlumno}\n` +
+        `📅 *Fecha:* ${fecha}\n` +
+        `🚪 *Hora de salida:* ${horaSalida}\n` +
+        `📌 *Motivo:* ${motivo}${detalleTxt}\n\n` +
+        `_Registro oficial mediante código QR institucional._`;
 
-    // Si el despachador no está en ejecución, arrancarlo de inmediato
-    if (!procesandoCola) {
-        setImmediate(() => procesarCola());
-    }
+    return encolarMensajeWhatsApp(telefono, nombreAlumno, mensaje, 'Permiso Salida', horaSalida);
 };
 
 const inicializarWhatsApp = () => {
@@ -234,6 +256,7 @@ const despacharColaManual = async () => {
 module.exports = {
     inicializarWhatsApp,
     enviarAlertaWhatsApp,
+    enviarAlertaSalidaWhatsApp,
     obtenerEstadoWhatsApp,
     despacharColaManual,
     procesarCola
