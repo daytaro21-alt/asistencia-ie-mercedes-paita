@@ -169,6 +169,7 @@ const ejecutarCierrePorton = async (fechaObjetivo = null) => {
     }
 
     console.log(`🔒 [Cierre de Portón ${fechaCierre}] Faltas procesadas: ${ausentes.length} | Alertas WhatsApp encoladas: ${alertasEncoladas}`);
+
     return {
         fecha: fechaCierre,
         horaEjecucion: horaSQL,

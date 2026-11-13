@@ -24,6 +24,10 @@ const {
     verificarPermisoPorteria
 } = require('../controllers/permisos.controller');
 const { login, listarUsuarios, crearOActualizarUsuario } = require('../controllers/auth.controller');
+const {
+    descargarBackupJSON,
+    restaurarSistema
+} = require('../controllers/backup.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 const { obtenerEstadoWhatsApp, despacharColaManual } = require('../utils/whatsappService');
 
@@ -124,5 +128,9 @@ router.post('/estudiantes/importar-excel', verificarToken, verificarRol(['Admini
 // Gestión de usuarios y perfiles del sistema
 router.get('/usuarios', verificarToken, verificarRol(['Administracion']), listarUsuarios);
 router.post('/usuarios', verificarToken, verificarRol(['Administracion']), crearOActualizarUsuario);
+
+// Copia de seguridad (Backup) y Restauración del sistema
+router.get('/backup/descargar', verificarToken, verificarRol(['Administracion']), descargarBackupJSON);
+router.post('/backup/restaurar', verificarToken, verificarRol(['Administracion']), restaurarSistema);
 
 module.exports = router;
