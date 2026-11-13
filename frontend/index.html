@@ -576,7 +576,7 @@
                 <!-- Visible SOLO para Administración -->
                 <button onclick="cambiarSubTab('administracion')" id="subTabAdministracion"
                     class="hidden px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
-                    ⚙️ Gestión de Estudiantes (Altas / Bajas / Excel)
+                    ⚙️ Gestión de Estudiantes / Backup
                 </button>
 
                 <!-- Visible para TOECE y Administración: Impresión de Carnets QR por Sección -->
@@ -3168,8 +3168,8 @@
 
                 mostrarMensajeBackup(`✅ ${data.mensaje}`, 'ok');
                 input.value = '';
-                if (typeof cargarDashboard === 'function') cargarDashboard();
-                if (typeof cargarPadronEstudiantes === 'function') cargarPadronEstudiantes();
+                if (typeof cargarResumenDashboard === 'function') cargarResumenDashboard();
+                if (typeof cargarTablaAdministracion === 'function') cargarTablaAdministracion();
             } catch (e) {
                 mostrarMensajeBackup(`❌ ${e.message}`, 'error');
             } finally {
