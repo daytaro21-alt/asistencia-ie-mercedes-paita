@@ -97,7 +97,7 @@ const generarBackupCompletoJSON = async () => {
 
     const [estudiantes] = await pool.query(
         `SELECT id_estudiante, dni, nombres, apellidos, grado, seccion, estado_matricula,
-                telefono_apoderado, tiene_permiso_1pm, qr_hash
+                telefono_apoderado, hora_limite_puntual
          FROM Estudiante
          ORDER BY seccion ASC, apellidos ASC, nombres ASC`
     );
@@ -180,8 +180,8 @@ const restaurarDesdeBackup = async (payload) => {
 
                 await conn.query(
                     `INSERT INTO Estudiante
-                        (dni, nombres, apellidos, grado, seccion, estado_matricula, telefono_apoderado, tiene_permiso_1pm, qr_hash)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (dni, nombres, apellidos, grado, seccion, estado_matricula, telefono_apoderado, hora_limite_puntual)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                         nombres = VALUES(nombres),
                         apellidos = VALUES(apellidos),
@@ -189,18 +189,16 @@ const restaurarDesdeBackup = async (payload) => {
                         seccion = VALUES(seccion),
                         estado_matricula = VALUES(estado_matricula),
                         telefono_apoderado = VALUES(telefono_apoderado),
-                        tiene_permiso_1pm = VALUES(tiene_permiso_1pm),
-                        qr_hash = COALESCE(VALUES(qr_hash), qr_hash)`,
+                        hora_limite_puntual = VALUES(hora_limite_puntual)`,
                     [
                         dni,
                         est.nombres || '',
                         est.apellidos || '',
-                        Number(est.grado || 5),
+                        String(est.grado || '5'),
                         String(est.seccion || 'A').trim(),
                         est.estado_matricula || 'DEFINITIVA',
                         est.telefono_apoderado || null,
-                        est.tiene_permiso_1pm ? 1 : 0,
-                        est.qr_hash || `MERCEDES_5TO_${dni}`
+                        est.hora_limite_puntual || null
                     ]
                 );
                 estudiantesRestaurados++;
@@ -216,7 +214,7 @@ const restaurarDesdeBackup = async (payload) => {
                 const fecha = normalizarFechaSQL(asis.fecha);
                 if (!idEstudiante || !fecha || !asis.estado) continue;
 
-                const hora = asis.hora_ingreso && asis.hora_ingreso !== '--:--:--' ? asis.hora_ingreso : null;
+                const hora = asis.hora_ingreso && asis.hora_ingreso !== '--:--:--' ? asis.hora_ingreso : '13:30:00';
                 const [existe] = await conn.query(
                     'SELECT id_asistencia FROM Asistencia WHERE estudiante_id = ? AND fecha = ? LIMIT 1',
                     [idEstudiante, fecha]
@@ -285,7 +283,7 @@ const restaurarDesdeBackup = async (payload) => {
                 const horaRaw = String(reg.hora_ingreso || '').trim();
                 const hora = /^\d{2}:\d{2}(:\d{2})?$/.test(horaRaw)
                     ? (horaRaw.length === 5 ? `${horaRaw}:00` : horaRaw)
-                    : null;
+                    : '13:30:00';
 
                 const [existe] = await conn.query(
                     'SELECT id_asistencia FROM Asistencia WHERE estudiante_id = ? AND fecha = ? LIMIT 1',
