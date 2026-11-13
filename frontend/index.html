@@ -579,11 +579,25 @@
                     ⚙️ Gestión de Estudiantes (Altas / Bajas / Excel)
                 </button>
 
-                <!-- Visible para TOECE y Administración -->
-                <a href="/carnets.html" target="_blank" id="btnImprimirCarnets"
-                    class="px-3.5 py-2 rounded-xl text-xs font-bold bg-dorado-400 hover:bg-dorado-300 text-mercedes-900 shadow-sm transition flex items-center gap-1.5">
-                    🪪 Imprimir Carnets QR
-                </a>
+                <!-- Visible para TOECE y Administración: Impresión de Carnets QR por Sección -->
+                <div id="btnImprimirCarnets" class="flex items-center bg-dorado-400 rounded-xl p-0.5 shadow-sm border border-dorado-500">
+                    <select id="selectSeccionCarnetHeader"
+                        class="bg-white text-mercedes-900 font-extrabold text-xs px-2 py-1.5 rounded-l-lg focus:outline-none">
+                        <option value="">Todas (A-H)</option>
+                        <option value="A">5to "A"</option>
+                        <option value="B">5to "B"</option>
+                        <option value="C">5to "C"</option>
+                        <option value="D">5to "D"</option>
+                        <option value="E">5to "E"</option>
+                        <option value="F">5to "F"</option>
+                        <option value="G">5to "G"</option>
+                        <option value="H">5to "H"</option>
+                    </select>
+                    <button type="button" onclick="abrirImpresionCarnetsPorSeccion()"
+                        class="px-3 py-1.5 rounded-r-lg text-xs font-extrabold bg-dorado-400 hover:bg-dorado-300 text-mercedes-900 transition flex items-center gap-1">
+                        🪪 Imprimir QR por Sección
+                    </button>
+                </div>
 
                 <button onclick="ejecutarCierrePortonUI()" id="btnCerrarPorton"
                     class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-mercedes-600 text-mercedes-800 hover:text-white border border-dorado-400 transition flex items-center gap-1.5">
@@ -845,6 +859,37 @@
                             <span class="px-3 py-1 rounded-full bg-rose-50 text-rose-800 border border-rose-200 font-bold">
                                 En Baja / Trasladados: <span id="lblAdminTotalBajas">0</span>
                             </span>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE DE IMPRESIÓN DE CARNETS QR SEPARADOS POR SECCIÓN -->
+                    <div class="bg-mercedes-50/70 border-2 border-mercedes-200 rounded-2xl p-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-mercedes-700 text-white">
+                                    Impresión por Aula (Hoja A4)
+                                </span>
+                                <h4 class="text-sm font-extrabold text-slate-900 mt-1">
+                                    🪪 Imprimir Carnets QR Separados por Sección (5to "A" — 5to "H")
+                                </h4>
+                                <p class="text-[11px] text-slate-600">
+                                    Elige una sección para generar e imprimir únicamente los carnets QR de esa aula, o imprime todas las secciones separadas en hojas independientes.
+                                </p>
+                            </div>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('')"
+                                class="bg-mercedes-700 hover:bg-mercedes-800 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl shadow transition">
+                                🖨️ Todas (Separadas por Sección)
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('A')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "A"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('B')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "B"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('C')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "C"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('D')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "D"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('E')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "E"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('F')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "F"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('G')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "G"</button>
+                            <button type="button" onclick="abrirImpresionCarnetsPorSeccion('H')" class="bg-white hover:bg-dorado-100 border-2 border-dorado-400 text-mercedes-900 font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm transition">🖨️ 5to "H"</button>
                         </div>
                     </div>
 
@@ -1655,6 +1700,14 @@
             } catch (err) {
                 alert('Error de conexión al guardar la corrección.');
             }
+        }
+
+        function abrirImpresionCarnetsPorSeccion(secExplicita) {
+            const sec = secExplicita !== undefined
+                ? secExplicita
+                : (document.getElementById('selectSeccionCarnetHeader')?.value || '');
+            const url = sec ? `/carnets.html?seccion=${encodeURIComponent(sec)}` : '/carnets.html';
+            window.open(url, '_blank');
         }
 
         async function ejecutarCierrePortonUI() {

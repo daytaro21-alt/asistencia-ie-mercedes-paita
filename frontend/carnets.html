@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Carnets QR (Impresión A4) | I.E. Nuestra Señora de las Mercedes</title>
+    <title>Generador de Carnets QR por Sección (A4) | I.E. Nuestra Señora de las Mercedes</title>
     <link rel="icon" type="image/png" href="/INSIGNIA%20mercedes%20png.png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- QRCode.js ligero para renderizar los 257 QRs en alta resolución al instante -->
+    <!-- QRCode.js ligero para renderizar los QRs en alta resolución al instante -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
@@ -16,13 +16,13 @@
         .carnet-grid {
             display: grid;
             grid-template-columns: repeat(3, 60mm);
-            gap: 5mm;
+            gap: 4.5mm;
             justify-content: center;
         }
 
         .carnet-card {
             width: 60mm;
-            height: 90mm;
+            height: 88mm;
             border: 1.5px solid #9e0b22;
             border-radius: 8px;
             overflow: hidden;
@@ -39,7 +39,7 @@
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 8mm;
+                margin: 7mm;
             }
             body {
                 background: #ffffff !important;
@@ -58,36 +58,36 @@
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-screen">
 
-    <!-- BARRA DE CONTROL (SE OCULTA AUTOMÁTICAMENTE AL IMPRIMIR / GUARDAR PDF) -->
+    <!-- BARRA DE CONTROL SUPERIOR (SE OCULTA AL IMPRIMIR) -->
     <header class="no-print bg-[#7f091c] text-white border-b-4 border-yellow-400 sticky top-0 z-50 shadow-lg">
         <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <img src="/INSIGNIA%20mercedes%20png.png" alt="Insignia" class="w-10 h-12 bg-white rounded-lg p-1 border border-yellow-400 object-contain">
                 <div>
-                    <h1 class="text-base font-extrabold">Generador Masivo de Carnets Estudiantiles QR</h1>
-                    <p class="text-xs text-red-100">I.E. Nuestra Señora de las Mercedes • Formato A4 listo para imprenta / enmicado (9 carnets por hoja)</p>
+                    <h1 class="text-base font-extrabold">Impresión de Carnets QR Separados por Sección</h1>
+                    <p class="text-xs text-red-100">I.E. Nuestra Señora de las Mercedes • Paita - Saber, Progreso y Felicidad</p>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2.5">
-                <select id="filtroSeccionCarnet" onchange="filtrarYRenderizarCarnets()"
+                <select id="filtroSeccionCarnet" onchange="seleccionarSeccionCarnets(this.value)"
                     class="bg-white text-slate-900 font-bold text-xs px-3 py-2 rounded-lg border-2 border-yellow-400 focus:outline-none">
-                    <option value="">Todas las Secciones (257 alumnos)</option>
-                    <option value="A">5to Sección "A"</option>
-                    <option value="B">5to Sección "B"</option>
-                    <option value="C">5to Sección "C"</option>
-                    <option value="D">5to Sección "D"</option>
-                    <option value="E">5to Sección "E"</option>
-                    <option value="F">5to Sección "F"</option>
-                    <option value="G">5to Sección "G"</option>
-                    <option value="H">5to Sección "H"</option>
+                    <option value="">Todas las Secciones (Separadas en hojas por sección)</option>
+                    <option value="A">Solo 5to Sección "A"</option>
+                    <option value="B">Solo 5to Sección "B"</option>
+                    <option value="C">Solo 5to Sección "C"</option>
+                    <option value="D">Solo 5to Sección "D"</option>
+                    <option value="E">Solo 5to Sección "E"</option>
+                    <option value="F">Solo 5to Sección "F"</option>
+                    <option value="G">Solo 5to Sección "G"</option>
+                    <option value="H">Solo 5to Sección "H"</option>
                 </select>
 
                 <input type="text" id="buscarAlumnoCarnet" oninput="filtrarYRenderizarCarnets()"
                     placeholder="Buscar DNI o apellido..."
                     class="bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-red-300 w-44 focus:outline-none">
 
-                <button onclick="window.print()"
+                <button onclick="window.print()" id="btnImprimirPrincipal"
                     class="bg-yellow-400 hover:bg-yellow-300 text-[#5c0513] font-extrabold text-xs px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5">
                     🖨️ Imprimir / Guardar PDF
                 </button>
@@ -99,39 +99,73 @@
         </div>
     </header>
 
+    <!-- SELECTOR RÁPIDO DE IMPRESIÓN POR SECCIÓN (SE OCULTA AL IMPRIMIR) -->
+    <section class="no-print max-w-6xl mx-auto px-4 pt-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-xs font-extrabold uppercase tracking-wider text-[#7f091c]">
+                        📌 Selecciona una Sección para Ver o Imprimir sus Carnets QR por Separado
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                        Haz clic en una sección para mostrar solo los carnets de esa aula, o pulsa su botón <strong>"🖨️ Imprimir"</strong>.
+                    </p>
+                </div>
+                <button onclick="seleccionarSeccionCarnets('')" id="btnVerTodasSecciones"
+                    class="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#7f091c] text-white shadow-sm transition">
+                    📋 Ver Todas (Separadas por Sección)
+                </button>
+            </div>
+
+            <div id="gridBotonesSecciones" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                <!-- Se llena dinámicamente con el conteo de cada sección A - H -->
+            </div>
+        </div>
+    </section>
+
     <!-- CONTADOR INFORMATIVO -->
-    <div class="no-print max-w-6xl mx-auto px-4 py-3 flex items-center justify-between text-xs text-slate-600">
+    <div class="no-print max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
         <span id="infoCantidadCarnets" class="font-bold">Cargando padrón de 5to de Secundaria...</span>
-        <span>💡 <strong>Tip de impresión:</strong> En la ventana de impresión activa la casilla <strong>"Gráficos de fondo"</strong> y escala <strong>100%</strong>.</span>
+        <span>💡 <strong>Tip de impresión:</strong> Activa la casilla <strong>"Gráficos de fondo"</strong> y escala <strong>100%</strong>.</span>
     </div>
 
     <!-- CONTENEDOR DE PÁGINAS A4 DE CARNETS -->
-    <main id="contenedorPaginasCarnets" class="py-4 space-y-8">
+    <main id="contenedorPaginasCarnets" class="py-2 space-y-8">
         <p class="text-center text-sm text-slate-500 py-12">Generando carnets institucionales...</p>
     </main>
 
     <script>
         let todosLosEstudiantes = [];
+        const SECCIONES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
         const tokenJWT = localStorage.getItem('toece_jwt');
 
         async function cargarEstudiantesParaCarnets() {
             if (!tokenJWT) {
-                alert('Primero debes iniciar sesión en el Panel TOECE para generar los carnets.');
+                alert('Primero debes iniciar sesión en el Panel Institucional para generar los carnets.');
                 window.location.href = '/';
                 return;
             }
 
             try {
-                const res = await fetch('/api/estudiantes', {
+                const res = await fetch('/api/estudiantes?estado=DEFINITIVA', {
                     headers: { 'Authorization': `Bearer ${tokenJWT}` }
                 });
                 if (!res.ok) {
-                    alert('Sesión expirada. Vuelve a iniciar sesión en el Panel TOECE.');
+                    alert('Sesión expirada. Vuelve a iniciar sesión.');
                     window.location.href = '/';
                     return;
                 }
                 const data = await res.json();
                 todosLosEstudiantes = data.estudiantes || [];
+
+                // Verificar si se pasó ?seccion=X en la URL
+                const params = new URLSearchParams(window.location.search);
+                const secUrl = (params.get('seccion') || '').trim().toUpperCase();
+                if (SECCIONES.includes(secUrl)) {
+                    document.getElementById('filtroSeccionCarnet').value = secUrl;
+                }
+
+                renderizarTarjetasSeccion();
                 filtrarYRenderizarCarnets();
             } catch (err) {
                 document.getElementById('contenedorPaginasCarnets').innerHTML =
@@ -139,9 +173,57 @@
             }
         }
 
+        function renderizarTarjetasSeccion() {
+            const seccionActiva = document.getElementById('filtroSeccionCarnet').value;
+            const btnTodas = document.getElementById('btnVerTodasSecciones');
+
+            btnTodas.className = !seccionActiva
+                ? 'text-xs font-bold px-3 py-1.5 rounded-xl bg-[#7f091c] text-white shadow-sm transition'
+                : 'text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition';
+
+            const grid = document.getElementById('gridBotonesSecciones');
+            grid.innerHTML = SECCIONES.map(sec => {
+                const cant = todosLosEstudiantes.filter(e => e.seccion === sec).length;
+                const hojas = Math.ceil(cant / 9) || 0;
+                const activa = seccionActiva === sec;
+
+                return `
+                    <div class="rounded-xl border-2 p-2.5 transition flex flex-col justify-between ${activa ? 'border-[#7f091c] bg-red-50/70 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-red-300'}">
+                        <button type="button" onclick="seleccionarSeccionCarnets('${sec}')" class="text-left w-full">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-black text-[#7f091c]">5to "${sec}"</span>
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">${cant} al.</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-0.5">${hojas} hoja(s) A4</p>
+                        </button>
+                        <button type="button" onclick="imprimirSeccionDirecto('${sec}')"
+                            class="mt-2 w-full bg-yellow-400 hover:bg-yellow-300 text-[#5c0513] font-extrabold text-[10px] py-1 px-2 rounded-lg shadow-sm transition">
+                            🖨️ Imprimir "${sec}"
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function seleccionarSeccionCarnets(sec) {
+            document.getElementById('filtroSeccionCarnet').value = sec;
+            renderizarTarjetasSeccion();
+            filtrarYRenderizarCarnets();
+        }
+
+        function imprimirSeccionDirecto(sec) {
+            seleccionarSeccionCarnets(sec);
+            setTimeout(() => window.print(), 250);
+        }
+
         function filtrarYRenderizarCarnets() {
             const seccion = document.getElementById('filtroSeccionCarnet').value;
             const busqueda = document.getElementById('buscarAlumnoCarnet').value.trim().toLowerCase();
+
+            const btnImp = document.getElementById('btnImprimirPrincipal');
+            btnImp.innerText = seccion
+                ? `🖨️ Imprimir 5to "${seccion}" (PDF)`
+                : '🖨️ Imprimir Todas las Secciones';
 
             const filtrados = todosLosEstudiantes.filter(e => {
                 const coincideSec = !seccion || e.seccion === seccion;
@@ -152,30 +234,52 @@
                 return coincideSec && coincideBusq;
             });
 
-            const totalHojas = Math.ceil(filtrados.length / 9);
-            document.getElementById('infoCantidadCarnets').innerText =
-                `Mostrando ${filtrados.length} carnet(s) • Equivalente a ${totalHojas} hoja(s) A4 lista(s) para cortar y enmicar`;
-
             const contenedor = document.getElementById('contenedorPaginasCarnets');
             if (filtrados.length === 0) {
+                document.getElementById('infoCantidadCarnets').innerText = '0 carnets encontrados';
                 contenedor.innerHTML = '<p class="text-center text-slate-500 py-12">No se encontraron alumnos con ese filtro.</p>';
                 return;
             }
 
-            // Agrupar de 9 en 9 carnets por hoja A4 (3 columnas x 3 filas)
-            let htmlPaginas = '';
-            for (let i = 0; i < filtrados.length; i += 9) {
-                const grupo = filtrados.slice(i, i + 9);
-                const esUltimaHoja = (i + 9) >= filtrados.length;
+            // Agrupar siempre por sección para que NUNCA se mezclen dos secciones en una misma hoja A4
+            const seccionesPresentes = seccion ? [seccion] : SECCIONES.filter(s => filtrados.some(e => e.seccion === s));
+            const bloquesDeHojas = [];
 
-                htmlPaginas += `
-                    <div class="carnet-grid ${esUltimaHoja ? '' : 'page-break'}">
-                        ${grupo.map(est => crearHTMLCarnet(est)).join('')}
+            seccionesPresentes.forEach(sec => {
+                const alumnosSec = filtrados.filter(e => e.seccion === sec);
+                const totalHojasSec = Math.ceil(alumnosSec.length / 9);
+
+                for (let i = 0; i < alumnosSec.length; i += 9) {
+                    const numHojaSec = Math.floor(i / 9) + 1;
+                    bloquesDeHojas.push({
+                        seccion: sec,
+                        numHojaSec,
+                        totalHojasSec,
+                        totalAlumnosSec: alumnosSec.length,
+                        grupo: alumnosSec.slice(i, i + 9)
+                    });
+                }
+            });
+
+            const tituloSeccionInfo = seccion ? `de 5to Sección "${seccion}"` : `separados por sección (A - H)`;
+            document.getElementById('infoCantidadCarnets').innerText =
+                `Mostrando ${filtrados.length} carnet(s) ${tituloSeccionInfo} • Total: ${bloquesDeHojas.length} hoja(s) A4 lista(s) para imprimir`;
+
+            contenedor.innerHTML = bloquesDeHojas.map((hoja, idx) => {
+                const esUltimaHojaGlobal = idx === bloquesDeHojas.length - 1;
+                return `
+                    <div class="${esUltimaHojaGlobal ? '' : 'page-break'}">
+                        <!-- Cintillo guía superior por hoja (indica la sección de esa página A4) -->
+                        <div class="max-w-[189mm] mx-auto mb-2 px-3 py-1 bg-amber-50 border border-[#9e0b22]/30 rounded-md flex items-center justify-between text-[10px] font-extrabold text-[#7f091c]">
+                            <span>📌 I.E. NUESTRA SEÑORA DE LAS MERCEDES — 5TO DE SECUNDARIA • SECCIÓN "${hoja.seccion}"</span>
+                            <span>SECCIÓN "${hoja.seccion}" (${hoja.totalAlumnosSec} alumnos) • HOJA ${hoja.numHojaSec} DE ${hoja.totalHojasSec}</span>
+                        </div>
+                        <div class="carnet-grid">
+                            ${hoja.grupo.map(est => crearHTMLCarnet(est)).join('')}
+                        </div>
                     </div>
                 `;
-            }
-
-            contenedor.innerHTML = htmlPaginas;
+            }).join('');
 
             // Renderizar los códigos QR en nivel 'H' dentro de cada tarjeta
             filtrados.forEach(est => {
@@ -183,8 +287,8 @@
                 if (qrDiv) {
                     new QRCode(qrDiv, {
                         text: est.dni.trim(),
-                        width: 118,
-                        height: 118,
+                        width: 116,
+                        height: 116,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
                         correctLevel: QRCode.CorrectLevel.H
